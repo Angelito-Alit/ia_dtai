@@ -456,9 +456,9 @@ def get_conversational_response(intent, message, context, role='directivo', user
             materias_por_carrera = {}
             for row in data:
                 carrera = row['carrera'] if row['carrera'] else 'Sin asignar'
-                if carrera not in materias
+                if carrera not in materias_por_carrera:
                 # Agrupar por carrera
-            materias_por_carrera = {}
+                        materias_por_carrera = {}
             for row in data:
                 carrera = row['carrera'] if row['carrera'] else 'Sin asignar'
                 if carrera not in materias_por_carrera:
