@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173", "https://frontend-ffc.vercel.app"], supports_credentials=True)
+CORS(app, origins="*")
 
 
 conversation_contexts = {}
