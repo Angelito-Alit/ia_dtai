@@ -811,7 +811,8 @@ def get_calificaciones_response():
         calificaciones_excelencia = len([c for c in calificaciones if c >= 9.0])
         calificaciones_riesgo = len([c for c in calificaciones if c < 7.0])
         
-        responsefrom flask import Flask, request, jsonify
+        response += 
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import logging
