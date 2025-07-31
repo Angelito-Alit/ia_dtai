@@ -33,10 +33,10 @@ def get_db_connection():
     try:
         config = get_db_config()
         connection = mysql.connector.connect(**config)
-        logger.info("Conexión a BD exitosa")
+        logger.info("✅ Conexión a BD exitosa")
         return connection
     except Exception as e:
-        logger.error(f" Error BD: {e}")
+        logger.error(f"❌ Error BD: {e}")
         return None
 
 def execute_query(query, params=None):
@@ -51,10 +51,10 @@ def execute_query(query, params=None):
         result = cursor.fetchall()
         cursor.close()
         connection.close()
-        logger.info(f" Query ejecutada: {len(result)} filas")
+        logger.info(f"✅ Query ejecutada: {len(result)} filas")
         return result
     except Exception as e:
-        logger.error(f" Error query: {e}")
+        logger.error(f"❌ Error query: {e}")
         if connection:
             connection.close()
         return None
@@ -81,138 +81,122 @@ def update_context(user_id, message, intent, response):
         context['messages'] = context['messages'][-5:]
 
 def classify_intent(message, context):
-    """Clasificador conversacional mejorado"""
+    """Clasificador conversacional"""
     msg = message.lower().strip()
     
-    # Remover signos de puntuación para mejor análisis
-    import re
-    msg_clean = re.sub(r'[^\w\s]', '', msg)
-    
-    # Saludos - más específico
-    saludo_patterns = ['hola', 'hello', 'hi', 'hey', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches']
-    if any(pattern in msg_clean for pattern in saludo_patterns):
+    # Saludos y cortesías
+    if any(w in msg for w in ['hola', 'hello', 'hi', 'buenos días', 'buenas tardes', 'buenas noches']):
         return 'saludo'
     
-    # Despedidas - más específico
-    despedida_patterns = ['adios', 'adiós', 'bye', 'hasta luego', 'nos vemos', 'chao', 'goodbye', 'hasta la vista']
-    if any(pattern in msg_clean for pattern in despedida_patterns):
-        return 'despedida'
-    
-    # Agradecimientos
-    if any(w in msg for w in ['gracias', 'thank you', 'te lo agradezco', 'muchas gracias']):
+    if any(w in msg for w in ['gracias', 'thank you', 'te lo agradezco']):
         return 'agradecimiento'
     
+    if any(w in msg for w in ['adiós', 'bye', 'hasta luego', 'nos vemos']):
+        return 'despedida'
+    
     # Estados emocionales
-    if any(w in msg for w in ['triste', 'deprimido', 'mal', 'terrible', 'horrible', 'preocupado']):
+    if any(w in msg for w in ['triste', 'deprimido', 'mal', 'terrible', 'horrible']):
         return 'emocional_negativo'
     
-    if any(w in msg for w in ['feliz', 'contento', 'bien', 'genial', 'excelente', 'perfecto']):
+    if any(w in msg for w in ['feliz', 'contento', 'bien', 'genial', 'excelente']):
         return 'emocional_positivo'
     
     # Preguntas sobre la IA
-    if any(pattern in msg for pattern in ['como estas', 'que tal', 'como te va', 'how are you']):
+    if any(w in msg for w in ['cómo estás', 'que tal', 'como estas', 'how are you']):
         return 'pregunta_estado'
     
-    if any(pattern in msg for pattern in ['quien eres', 'que eres', 'who are you', 'que puedes hacer']):
+    if any(w in msg for w in ['quién eres', 'que eres', 'who are you', 'qué puedes hacer']):
         return 'pregunta_identidad'
     
-    # Consultas académicas - más específicas
-    if any(w in msg for w in ['calificaciones', 'notas', 'puntuaciones', 'resultados', 'evaluaciones']):
+    # Consultas académicas
+    if any(w in msg for w in ['calificaciones', 'notas', 'puntuaciones', 'resultados']):
         return 'calificaciones'
     
-    if any(w in msg for w in ['riesgo', 'problema', 'dificultad', 'ayuda', 'atencion']):
+    if any(w in msg for w in ['riesgo', 'problema', 'dificultad', 'ayuda']):
         return 'riesgo'
     
-    if any(w in msg for w in ['promedio', 'carrera', 'rendimiento', 'desempeño']):
+    if any(w in msg for w in ['promedio', 'carrera', 'rendimiento']):
         return 'promedio'
     
-    if any(w in msg for w in ['estadisticas', 'resumen', 'general', 'números', 'datos']):
+    if any(w in msg for w in ['estadisticas', 'resumen', 'general', 'números']):
         return 'estadisticas'
     
-    # Afirmaciones/Negaciones contextuales
-    if context.get('last_intent'):
-        if any(w in msg for w in ['sí', 'si', 'claro', 'ok', 'está bien', 'de acuerdo', 'perfecto']):
-            return 'afirmacion'
-        
-        if any(w in msg for w in ['no', 'nada', 'mejor no', 'no gracias']):
-            return 'negacion'
+    # Seguimientos contextuales
+    if context['last_intent'] and any(w in msg for w in ['más', 'otro', 'también', 'además']):
+        return f"mas_{context['last_intent']}"
     
-    # Si no coincide con nada específico
+    if any(w in msg for w in ['sí', 'si', 'claro', 'ok', 'está bien']):
+        return 'afirmacion'
+    
+    if any(w in msg for w in ['no', 'nada', 'mejor no']):
+        return 'negacion'
+    
     return 'conversacion_general'
 
 def get_conversational_response(intent, message, context, role='alumno', user_id=1):
-    """Generar respuesta conversacional mejorada"""
+    """Generar respuesta conversacional con datos reales de BD"""
     
-    # Respuestas más naturales y variadas
+    # Respuestas conversacionales
     responses = {
         'saludo': [
-            "¡Hola!  Me alegra verte. ¿En qué puedo ayudarte hoy?",
-            "¡Hola!  ¿Cómo estás? Soy tu asistente virtual académico.",
-            "¡Hey!  ¿Qué tal? ¿En qué te puedo asistir?",
-            "¡Buenos días! ¿En qué puedo ayudarte?"
-        ],
-        
-        'despedida': [
-            "¡Hasta luego! Que tengas un excelente día.",
-            "¡Nos vemos!  Aquí estaré cuando me necesites.",
-            "¡Adiós!  Fue un placer ayudarte.",
-            "¡Bye!  ¡Que todo te vaya muy bien!"
+            "¡Hola! 😊 ¿Cómo estás? Soy tu asistente virtual académico.",
+            "¡Buenos días! 🌟 ¿En qué te puedo ayudar hoy?",
+            "¡Hola! Me alegra verte por aquí. ¿Qué necesitas saber?",
+            "¡Hey! 👋 ¿Cómo van las cosas? ¿En qué te puedo asistir?"
         ],
         
         'pregunta_estado': [
-            "¡Muy bien, gracias por preguntar!  ¿Y tú cómo estás?",
-            "¡Excelente! Funcionando perfectamente y listo para ayudarte. ¿Qué necesitas?",
-            "¡Genial! Siempre contento de poder ayudar. ¿En qué te apoyo?"
+            "¡Muy bien, gracias por preguntar! 🤖 Estoy aquí para ayudarte con tus consultas académicas.",
+            "¡Excelente! Funcionando al 100% y listo para ayudarte. ¿Qué necesitas?",
+            "¡Perfecto! Siempre contento de poder ayudar a estudiantes como tú. ¿En qué te apoyo?"
         ],
         
         'pregunta_identidad': [
-            "Soy tu asistente virtual académico . Puedo ayudarte con información sobre estudiantes, profesores, calificaciones y estadísticas del sistema.",
-            "¡Hola! Soy una IA especializada en educación. Estoy conectado a la base de datos para darte información actualizada.",
-            "Soy tu compañero digital para consultas académicas 📚. ¿Qué te gustaría saber?"
+            "Soy tu asistente virtual académico 🤖. Puedo ayudarte con calificaciones, reportes de riesgo, estadísticas y más. ¡Pregúntame lo que necesites!",
+            "¡Hola! Soy una IA especializada en educación. Mi trabajo es ayudarte con tus consultas académicas y darte recomendaciones personalizadas.",
+            "Soy tu compañero digital para todo lo académico 📚. Consulto la base de datos en tiempo real para darte información actualizada."
         ],
         
         'emocional_negativo': [
-            "Lo siento que te sientas así . ¿Hay algo específico que te preocupa? Tal vez pueda ayudarte.",
-            "Entiendo que puede ser frustrante . Estoy aquí para apoyarte. ¿En qué puedo ayudarte?",
-            "Siento que estés pasando por un momento difícil 🫂. ¿Quieres que revisemos algo específico?"
+            "Lo siento mucho que te sientas así 😔. Recuerda que los desafíos académicos son temporales y siempre hay oportunidades de mejorar. ¿Te gustaría que revisemos tu situación académica juntos?",
+            "Entiendo que puede ser frustrante 💙. Estoy aquí para apoyarte. ¿Hay algo específico que te preocupa? Podemos buscar soluciones juntos.",
+            "Sé que a veces puede ser abrumador 🫂. Pero recuerda que cada dificultad es una oportunidad de crecimiento. ¿En qué área necesitas más apoyo?"
         ],
         
         'emocional_positivo': [
-            "¡Me alegra escuchar eso!  ¿En qué más puedo ayudarte?",
-            "¡Qué bueno!  Me encanta ver esa actitud positiva.",
-            "¡Excelente!  ¿Hay algo más en lo que te pueda asistir?"
+            "¡Me alegra mucho escuchar eso! 😄 ¡Sigue así! ¿Hay algo en lo que pueda ayudarte para mantener ese buen ánimo?",
+            "¡Qué bueno! 🎉 La actitud positiva es clave para el éxito académico. ¿Quieres revisar cómo van tus materias?",
+            "¡Excelente! 🌟 Me encanta ver estudiantes motivados. ¿En qué más puedo apoyarte?"
         ],
         
         'agradecimiento': [
-            "¡De nada! 😊 Para eso estoy aquí.",
-            "¡Un placer ayudarte! 🤗 ¿Necesitas algo más?",
-            "¡Siempre es un gusto! "
+            "¡De nada! 😊 Para eso estoy aquí. ¿Necesitas algo más?",
+            "¡Un placer ayudarte! 🤗 Cualquier otra cosa que necesites, solo pregunta.",
+            "¡Siempre es un gusto! 👍 ¿Hay algo más en lo que te pueda asistir?"
+        ],
+        
+        'despedida': [
+            "¡Hasta luego! 👋 Que tengas un excelente día. Aquí estaré cuando me necesites.",
+            "¡Nos vemos! 😊 ¡Que te vaya súper bien en tus estudios!",
+            "¡Adiós! 🌟 Recuerda que siempre puedes contar conmigo para tus consultas académicas."
         ],
         
         'afirmacion': [
-            "¡Perfecto!  ¿En qué más te puedo ayudar?",
-            "¡Genial!  ¿Algo más que necesites?",
-            "¡Excelente! ¿Qué más quieres saber?"
+            "¡Perfecto! 👍 ¿En qué más te puedo ayudar?",
+            "¡Genial! 😊 ¿Hay algo más que quieras saber?",
+            "¡Excelente! ¿Qué más necesitas?"
         ],
         
         'negacion': [
-            "Entiendo . ¿Hay algo más en lo que te pueda ayudar?",
-            "Sin problema . ¿Alguna otra consulta?",
-            "Está bien . ¿Necesitas algo diferente?"
+            "Entiendo 👌. Si cambias de opinión o necesitas algo más, aquí estaré.",
+            "Sin problema 😊. ¿Hay algo diferente en lo que te pueda ayudar?",
+            "Está bien 👍. Cualquier otra consulta que tengas, solo dímelo."
         ]
     }
     
-    # Evitar repetir la misma respuesta
+    # Respuestas conversacionales básicas
     if intent in responses:
-        # Filtrar respuestas ya usadas recientemente
-        used_responses = [msg['bot'] for msg in context.get('messages', [])[-3:] if 'bot' in msg]
-        available_responses = [r for r in responses[intent] if not any(r in used for used in used_responses)]
-        
-        # Si todas las respuestas fueron usadas, usar cualquiera
-        if not available_responses:
-            available_responses = responses[intent]
-        
-        return random.choice(available_responses)
+        return random.choice(responses[intent])
     
     # Consultas académicas con datos REALES de BD
     elif intent == 'calificaciones':
@@ -228,7 +212,7 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
         data = execute_query(query, [user_id])
         
         if data:
-            response = " **Aquí tienes tus calificaciones:**\n\n"
+            response = "📊 **Aquí tienes tus calificaciones:**\n\n"
             total_promedio = 0
             materias_count = 0
             materias_riesgo = 0
@@ -250,12 +234,12 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
                     if row['parcial_1']: parciales.append(f"P1: {row['parcial_1']:.1f}")
                     if row['parcial_2']: parciales.append(f"P2: {row['parcial_2']:.1f}")
                     if row['parcial_3']: parciales.append(f"P3: {row['parcial_3']:.1f}")
-                    response += f"    {' | '.join(parciales)}\n"
+                    response += f"   📝 {' | '.join(parciales)}\n"
                 response += "\n"
             
             if materias_count > 0:
                 promedio_actual = total_promedio / materias_count
-                response += f" **Tu promedio actual**: {promedio_actual:.2f}\n\n"
+                response += f"📈 **Tu promedio actual**: {promedio_actual:.2f}\n\n"
                 
                 if promedio_actual >= 9.0:
                     response += "🌟 ¡Excelente trabajo! Sigues por muy buen camino."
@@ -267,12 +251,12 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
                     response += "⚠️ Necesitas enfocarte más en tus estudios."
                 
                 if materias_riesgo > 0:
-                    response += f"\n Tienes {materias_riesgo} materia(s) por debajo de 7.0"
+                    response += f"\n⚠️ Tienes {materias_riesgo} materia(s) por debajo de 7.0"
             
-            response += "\n\n ¿Te gustaría ver estrategias para mejorar en alguna materia específica?"
+            response += "\n\n❓ ¿Te gustaría ver estrategias para mejorar en alguna materia específica?"
             return response
         else:
-            return " No encontré calificaciones registradas para ti. ¿Es tu primer cuatrimestre? Si crees que es un error, puedes contactar a tu coordinador académico. 😊"
+            return "📚 No encontré calificaciones registradas para ti. ¿Es tu primer cuatrimestre? Si crees que es un error, puedes contactar a tu coordinador académico. 😊"
     
     elif intent == 'riesgo':
         query = """
@@ -293,7 +277,7 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
         
         if data:
             criticos = len([d for d in data if d['nivel_riesgo'] == 'critico'])
-            response = f" **Alumnos que necesitan atención** ({len(data)} casos activos):\n\n"
+            response = f"🚨 **Alumnos que necesitan atención** ({len(data)} casos activos):\n\n"
             
             for row in data:
                 emoji = "🔴" if row['nivel_riesgo'] == 'critico' else "🟡" if row['nivel_riesgo'] == 'alto' else "🟠"
@@ -301,12 +285,12 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
                 response += f"   Carrera: {row['carrera']}\n"
                 response += f"   Riesgo: {row['nivel_riesgo']} ({row['tipo_riesgo']})\n"
                 if row['descripcion']:
-                    response += f"    {row['descripcion'][:80]}...\n"
+                    response += f"   📝 {row['descripcion'][:80]}...\n"
                 response += "\n"
             
             if criticos > 0:
-                response += f" **ATENCIÓN URGENTE**: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n\n"
-                response += " **Recomendaciones**:\n"
+                response += f"🚨 **ATENCIÓN URGENTE**: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n\n"
+                response += "💡 **Recomendaciones**:\n"
                 response += "• Contactar a padres/tutores hoy mismo\n"
                 response += "• Programar citas individuales esta semana\n"
                 response += "• Evaluar apoyos adicionales (económicos, psicológicos)\n"
@@ -314,7 +298,7 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
             response += "\n❓ ¿Te gustaría que genere un plan de intervención detallado?"
             return response
         else:
-            return " ¡Excelente noticia! No hay alumnos en situación de riesgo actualmente. El sistema educativo está funcionando bien. "
+            return "✅ ¡Excelente noticia! No hay alumnos en situación de riesgo actualmente. El sistema educativo está funcionando bien. 😊"
     
     elif intent == 'promedio':
         query = """
@@ -332,7 +316,7 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
         data = execute_query(query)
         
         if data:
-            response = "**Rendimiento por Carrera:**\n\n"
+            response = "📈 **Rendimiento por Carrera:**\n\n"
             for row in data:
                 porcentaje_riesgo = (row['alumnos_riesgo'] / row['total_alumnos'] * 100) if row['total_alumnos'] > 0 else 0
                 emoji = "🟢" if porcentaje_riesgo < 10 else "🟡" if porcentaje_riesgo < 25 else "🔴"
@@ -342,10 +326,10 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
                 response += f"   Promedio: {row['promedio_carrera']}\n"
                 response += f"   En riesgo: {row['alumnos_riesgo']} ({porcentaje_riesgo:.1f}%)\n\n"
             
-            response += " ¿Te gustaría ver un análisis más detallado de alguna carrera específica?"
+            response += "💡 ¿Te gustaría ver un análisis más detallado de alguna carrera específica?"
             return response
         else:
-            return " No se encontraron datos de promedios por carrera."
+            return "📊 No se encontraron datos de promedios por carrera."
     
     elif intent == 'estadisticas':
         queries = [
@@ -355,7 +339,7 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
             ("Solicitudes Pendientes", "SELECT COUNT(*) as total FROM solicitudes_ayuda WHERE estado IN ('pendiente', 'en_atencion')")
         ]
         
-        response = " **Estadísticas del Sistema:**\n\n"
+        response = "📊 **Estadísticas del Sistema:**\n\n"
         
         for name, query in queries:
             result = execute_query(query)
@@ -368,192 +352,25 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
         if avg_result and avg_result[0]['promedio_sistema']:
             response += f"• **Promedio General del Sistema**: {avg_result[0]['promedio_sistema']}\n"
         
-        response += "\n ¿Te gustaría un análisis más profundo de algún área específica?"
-        return response
-    
-    elif intent == 'conversacion_general':
-        # Respuestas más naturales para conversación general
-        general_responses = [
-            f"Hmm, entiendo. ¿Hay algo específico sobre la institución en lo que te pueda ayudar? ",
-            f"Claro, recibí tu mensaje. ¿Te gustaría que revisemos alguna información académica? ",
-            f"Perfecto. Como asistente académico, ¿en qué puedo asistirte específicamente? ",
-            f"Entiendo. ¿Necesitas información sobre estudiantes, profesores o estadísticas? "
-        ]
-        return random.choice(general_responses)
-    
-    # Default conversacional más natural
-    return f"Interesante. ¿En qué puedo ayudarte específicamente? Puedo consultar información sobre estudiantes, profesores, calificaciones y más. "
-        query = """
-        SELECT a.nombre, c.calificacion_final, c.estatus, c.parcial_1, c.parcial_2, c.parcial_3
-        FROM calificaciones c
-        JOIN asignaturas a ON c.asignatura_id = a.id
-        JOIN alumnos al ON c.alumno_id = al.id
-        WHERE al.usuario_id = %s
-        ORDER BY a.nombre
-        LIMIT 10
-        """
-        data = execute_query(query, [user_id])
-        
-        if data:
-            response = " **Aquí tienes tus calificaciones:**\n\n"
-            total_promedio = 0
-            materias_count = 0
-            materias_riesgo = 0
-            
-            for row in data:
-                if row['calificacion_final']:
-                    total_promedio += row['calificacion_final']
-                    materias_count += 1
-                    if row['calificacion_final'] < 7.0:
-                        materias_riesgo += 1
-                
-                status = "✅" if row['estatus'] == 'aprobado' else "📝" if row['estatus'] == 'cursando' else "❌"
-                grade = f"{row['calificacion_final']:.1f}" if row['calificacion_final'] else 'Sin calificar'
-                response += f"{status} **{row['nombre']}**: {grade}\n"
-                
-                # Mostrar parciales si están disponibles
-                if row['parcial_1'] or row['parcial_2'] or row['parcial_3']:
-                    parciales = []
-                    if row['parcial_1']: parciales.append(f"P1: {row['parcial_1']:.1f}")
-                    if row['parcial_2']: parciales.append(f"P2: {row['parcial_2']:.1f}")
-                    if row['parcial_3']: parciales.append(f"P3: {row['parcial_3']:.1f}")
-                    response += f"    {' | '.join(parciales)}\n"
-                response += "\n"
-            
-            if materias_count > 0:
-                promedio_actual = total_promedio / materias_count
-                response += f" **Tu promedio actual**: {promedio_actual:.2f}\n\n"
-                
-                if promedio_actual >= 9.0:
-                    response += "🌟 ¡Excelente trabajo! Sigues por muy buen camino."
-                elif promedio_actual >= 8.0:
-                    response += "👍 ¡Muy bien! Tu rendimiento es bueno."
-                elif promedio_actual >= 7.0:
-                    response += "💪 Vas bien, pero hay espacio para mejorar."
-                else:
-                    response += "⚠️ Necesitas enfocarte más en tus estudios."
-                
-                if materias_riesgo > 0:
-                    response += f"\n Tienes {materias_riesgo} materia(s) por debajo de 7.0"
-            
-            response += "\n\n ¿Te gustaría ver estrategias para mejorar en alguna materia específica?"
-            return response
-        else:
-            return " No encontré calificaciones registradas para ti. ¿Es tu primer cuatrimestre? Si crees que es un error, puedes contactar a tu coordinador académico. 😊"
-    
-    elif intent == 'riesgo':
-        query = """
-        SELECT u.nombre, u.apellido, al.matricula, rr.nivel_riesgo, rr.tipo_riesgo, rr.descripcion, car.nombre as carrera
-        FROM reportes_riesgo rr
-        JOIN alumnos al ON rr.alumno_id = al.id
-        JOIN usuarios u ON al.usuario_id = u.id
-        JOIN carreras car ON al.carrera_id = car.id
-        WHERE rr.estado IN ('abierto', 'en_proceso')
-        ORDER BY CASE rr.nivel_riesgo 
-            WHEN 'critico' THEN 1 
-            WHEN 'alto' THEN 2 
-            WHEN 'medio' THEN 3 
-            ELSE 4 END
-        LIMIT 10
-        """
-        data = execute_query(query)
-        
-        if data:
-            criticos = len([d for d in data if d['nivel_riesgo'] == 'critico'])
-            response = f" **Alumnos que necesitan atención** ({len(data)} casos activos):\n\n"
-            
-            for row in data:
-                emoji = "🔴" if row['nivel_riesgo'] == 'critico' else "🟡" if row['nivel_riesgo'] == 'alto' else "🟠"
-                response += f"{emoji} **{row['nombre']} {row['apellido']}** ({row['matricula']})\n"
-                response += f"   Carrera: {row['carrera']}\n"
-                response += f"   Riesgo: {row['nivel_riesgo']} ({row['tipo_riesgo']})\n"
-                if row['descripcion']:
-                    response += f"    {row['descripcion'][:80]}...\n"
-                response += "\n"
-            
-            if criticos > 0:
-                response += f" **ATENCIÓN URGENTE**: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n\n"
-                response += " **Recomendaciones**:\n"
-                response += "• Contactar a padres/tutores hoy mismo\n"
-                response += "• Programar citas individuales esta semana\n"
-                response += "• Evaluar apoyos adicionales (económicos, psicológicos)\n"
-            
-            response += "\n ¿Te gustaría que genere un plan de intervención detallado?"
-            return response
-        else:
-            return " ¡Excelente noticia! No hay alumnos en situación de riesgo actualmente. El sistema educativo está funcionando bien. 😊"
-    
-    elif intent == 'promedio':
-        query = """
-        SELECT c.nombre as carrera, 
-               COUNT(al.id) as total_alumnos,
-               ROUND(AVG(al.promedio_general), 2) as promedio_carrera,
-               COUNT(CASE WHEN al.promedio_general < 7.0 THEN 1 END) as alumnos_riesgo
-        FROM carreras c
-        LEFT JOIN alumnos al ON c.id = al.carrera_id
-        WHERE al.estado_alumno = 'activo'
-        GROUP BY c.id, c.nombre
-        ORDER BY promedio_carrera DESC
-        LIMIT 10
-        """
-        data = execute_query(query)
-        
-        if data:
-            response = " **Rendimiento por Carrera:**\n\n"
-            for row in data:
-                porcentaje_riesgo = (row['alumnos_riesgo'] / row['total_alumnos'] * 100) if row['total_alumnos'] > 0 else 0
-                emoji = "🟢" if porcentaje_riesgo < 10 else "🟡" if porcentaje_riesgo < 25 else "🔴"
-                
-                response += f"{emoji} **{row['carrera']}**\n"
-                response += f"   Alumnos: {row['total_alumnos']}\n"
-                response += f"   Promedio: {row['promedio_carrera']}\n"
-                response += f"   En riesgo: {row['alumnos_riesgo']} ({porcentaje_riesgo:.1f}%)\n\n"
-            
-            response += " ¿Te gustaría ver un análisis más detallado de alguna carrera específica?"
-            return response
-        else:
-            return " No se encontraron datos de promedios por carrera."
-    
-    elif intent == 'estadisticas':
-        queries = [
-            ("Total Alumnos Activos", "SELECT COUNT(*) as total FROM alumnos WHERE estado_alumno = 'activo'"),
-            ("Total Carreras", "SELECT COUNT(*) as total FROM carreras WHERE activa = 1"),
-            ("Reportes Abiertos", "SELECT COUNT(*) as total FROM reportes_riesgo WHERE estado IN ('abierto', 'en_proceso')"),
-            ("Solicitudes Pendientes", "SELECT COUNT(*) as total FROM solicitudes_ayuda WHERE estado IN ('pendiente', 'en_atencion')")
-        ]
-        
-        response = " **Estadísticas del Sistema:**\n\n"
-        
-        for name, query in queries:
-            result = execute_query(query)
-            if result:
-                response += f"• **{name}**: {result[0]['total']}\n"
-        
-        # Agregar promedio general del sistema
-        avg_query = "SELECT ROUND(AVG(promedio_general), 2) as promedio_sistema FROM alumnos WHERE estado_alumno = 'activo' AND promedio_general > 0"
-        avg_result = execute_query(avg_query)
-        if avg_result and avg_result[0]['promedio_sistema']:
-            response += f"• **Promedio General del Sistema**: {avg_result[0]['promedio_sistema']}\n"
-        
-        response += "\n ¿Te gustaría un análisis más profundo de algún área específica?"
+        response += "\n🎯 ¿Te gustaría un análisis más profundo de algún área específica?"
         return response
     
     elif intent == 'conversacion_general':
         general_responses = [
-            f"Interesante lo que me dices: '{message}' . Como tu asistente académico, ¿hay algo relacionado con tus estudios en lo que te pueda ayudar?",
-            f"Entiendo tu mensaje sobre '{message}' . ¿Te gustaría que revisemos algo específico de tu situación académica?",
+            f"Interesante lo que me dices: '{message}' 🤔. Como tu asistente académico, ¿hay algo relacionado con tus estudios en lo que te pueda ayudar?",
+            f"Entiendo tu mensaje sobre '{message}' 😊. ¿Te gustaría que revisemos algo específico de tu situación académica?",
             f"Gracias por compartir eso conmigo. Como asistente educativo, estoy aquí para apoyarte. ¿Hay alguna consulta académica que tengas?",
-            f"Me parece muy interesante lo que mencionas. ¿Podemos enfocar nuestra conversación en cómo te puedo ayudar con tus estudios? "
+            f"Me parece muy interesante lo que mencionas. ¿Podemos enfocar nuestra conversación en cómo te puedo ayudar con tus estudios? 📚"
         ]
         return random.choice(general_responses)
     
     # Default conversacional
-    return f"Hmm, entiendo que me dices '{message}' . Como tu asistente académico, ¿en qué puedo ayudarte específicamente? Puedo consultar calificaciones, reportes de riesgo, estadísticas y más. "
+    return f"Hmm, entiendo que me dices '{message}' 🤔. Como tu asistente académico, ¿en qué puedo ayudarte específicamente? Puedo consultar calificaciones, reportes de riesgo, estadísticas y más. 😊"
 
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
-        "status": " FUNCIONANDO",
+        "status": "✅ FUNCIONANDO",
         "message": "IA Conversacional con MySQL - Railway",
         "version": "2.0.0",
         "features": ["Conversación Natural", "Base de Datos Real", "Contexto Mantenido"],
@@ -570,17 +387,17 @@ def test():
         if result:
             return jsonify({
                 "success": True,
-                "message": "Sistema completamente funcional",
-                "database": "MySQL Conectado",
-                "conversation": " IA Conversacional Activa",
+                "message": "🚀 Sistema completamente funcional",
+                "database": "✅ MySQL Conectado",
+                "conversation": "✅ IA Conversacional Activa",
                 "result": result[0],
                 "timestamp": datetime.now().isoformat()
             })
         else:
             return jsonify({
                 "success": False,
-                "message": " Error de conexión a BD",
-                "database": " MySQL Desconectado"
+                "message": "❌ Error de conexión a BD",
+                "database": "❌ MySQL Desconectado"
             }), 500
             
     except Exception as e:
@@ -605,7 +422,7 @@ def chat():
         if not message:
             return jsonify({
                 "success": True,
-                "response": " Parece que no escribiste nada. ¿En qué te puedo ayudar?",
+                "response": "😅 Parece que no escribiste nada. ¿En qué te puedo ayudar?",
                 "intent": "mensaje_vacio"
             })
         
