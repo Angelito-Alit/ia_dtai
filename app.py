@@ -2,394 +2,726 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import logging
-import traceback
+import mysql.connector
 from datetime import datetime
-import sys
+import re
+import random
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Crear aplicación Flask
 app = Flask(__name__)
-CORS(app, origins=["*"])
+CORS(app)
 
-# Variables globales para IA
-ai_instance = None
-db_connection = None
+# Contexto de conversación simple (en memoria)
+conversation_contexts = {}
 
-def initialize_ai():
-    """Inicializar la IA completa con ML"""
-    global ai_instance, db_connection
+def get_db_config():
+    return {
+        'host': os.environ.get('DB_HOST', 'bluebyte.space'),
+        'user': os.environ.get('DB_USER', 'bluebyte_angel'),
+        'password': os.environ.get('DB_PASSWORD', 'orbitalsoft'),
+        'database': os.environ.get('DB_NAME', 'bluebyte_dtai_web'),
+        'port': int(os.environ.get('DB_PORT', 3306)),
+        'charset': 'utf8mb4',
+        'autocommit': True
+    }
+
+def get_db_connection():
+    """Crear conexión a BD"""
+    try:
+        config = get_db_config()
+        connection = mysql.connector.connect(**config)
+        return connection
+    except Exception as e:
+        logger.error(f"Error BD: {e}")
+        return None
+
+def execute_query(query, params=None):
+    """Ejecutar consulta"""
+    connection = get_db_connection()
+    if not connection:
+        return None
     
     try:
-        logger.info("Inicializando IA conversacional completa...")
-        
-        # Importar módulos después de instalar dependencias
-        from database.connection import DatabaseConnection
-        from models.conversation_ai import ConversationAI
-        
-        # Inicializar conexión a la base de datos
-        db_connection = DatabaseConnection()
-        
-        # Test de conexión
-        if not db_connection.test_connection():
-            raise Exception("No se pudo conectar a la base de datos")
-        
-        # Inicializar la IA
-        ai_instance = ConversationAI(db_connection)
-        ai_instance.initialize()
-        
-        logger.info("IA inicializada correctamente con ML")
-        return True
-        
-    except ImportError as e:
-        logger.error(f"Error importando módulos: {e}")
-        logger.info("Algunos módulos pueden estar instalándose...")
-        return False
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query, params or [])
+        result = cursor.fetchall()
+        cursor.close()
+        connection.close()
+        return result
     except Exception as e:
-        logger.error(f"Error inicializando IA: {e}")
-        logger.error(traceback.format_exc())
-        return False
+        logger.error(f"Error query: {e}")
+        if connection:
+            connection.close()
+        return None
 
-def get_ai_instance():
-    """Obtener instancia de IA (lazy loading)"""
-    global ai_instance
+def get_conversation_context(user_id):
+    """Obtener contexto de conversación"""
+    if user_id not in conversation_contexts:
+        conversation_contexts[user_id] = {
+            'messages': [],
+            'last_intent': None,
+            'user_name': None,
+            'mood': 'neutral'
+        }
+    return conversation_contexts[user_id]
+
+def update_context(user_id, message, intent, response):
+    """Actualizar contexto"""
+    context = get_conversation_context(user_id)
+    context['messages'].append({
+        'user': message,
+        'bot': response,
+        'intent': intent,
+        'time': datetime.now()
+    })
+    context['last_intent'] = intent
     
-    if ai_instance is None:
-        if not initialize_ai():
-            raise Exception("No se pudo inicializar la IA")
+    # Mantener solo últimas 5 conversaciones
+    if len(context['messages']) > 5:
+        context['messages'] = context['messages'][-5:]
+
+def classify_intent(message, context):
+    """Clasificador conversacional inteligente"""
+    msg = message.lower().strip()
     
-    return ai_instance
+    # Saludos y cortesías
+    if any(w in msg for w in ['hola', 'hello', 'hi', 'buenos días', 'buenas tardes', 'buenas noches']):
+        return 'saludo'
+    
+    if any(w in msg for w in ['gracias', 'thank you', 'te lo agradezco']):
+        return 'agradecimiento'
+    
+    if any(w in msg for w in ['adiós', 'bye', 'hasta luego', 'nos vemos']):
+        return 'despedida'
+    
+    # Estados emocionales
+    if any(w in msg for w in ['triste', 'deprimido', 'mal', 'terrible', 'horrible']):
+        return 'emocional_negativo'
+    
+    if any(w in msg for w in ['feliz', 'contento', 'bien', 'genial', 'excelente']):
+        return 'emocional_positivo'
+    
+    # Preguntas sobre la IA
+    if any(w in msg for w in ['cómo estás', 'que tal', 'como estas', 'how are you']):
+        return 'pregunta_estado'
+    
+    if any(w in msg for w in ['quién eres', 'que eres', 'who are you', 'qué puedes hacer']):
+        return 'pregunta_identidad'
+    
+    # Consultas académicas
+    if any(w in msg for w in ['calificaciones', 'notas', 'puntuaciones', 'resultados']):
+        return 'calificaciones'
+    
+    if any(w in msg for w in ['riesgo', 'problema', 'dificultad', 'ayuda']):
+        return 'riesgo'
+    
+    if any(w in msg for w in ['promedio', 'carrera', 'rendimiento']):
+        return 'promedio'
+    
+    if any(w in msg for w in ['estadisticas', 'resumen', 'general', 'números']):
+        return 'estadisticas'
+    
+    # Seguimientos contextuales
+    if context['last_intent'] and any(w in msg for w in ['más', 'otro', 'también', 'además']):
+        return f"mas_{context['last_intent']}"
+    
+    if any(w in msg for w in ['sí', 'si', 'claro', 'ok', 'está bien']):
+        return 'afirmacion'
+    
+    if any(w in msg for w in ['no', 'nada', 'mejor no']):
+        return 'negacion'
+    
+    return 'conversacion_general'
+
+def get_conversational_response(intent, message, context, role='alumno', user_id=1):
+    """Generar respuesta conversacional inteligente"""
+    
+    responses = {
+        'saludo': [
+            "¡Hola! 😊 ¿Cómo estás? Soy tu asistente virtual académico.",
+            "¡Buenos días! 🌟 ¿En qué te puedo ayudar hoy?",
+            "¡Hola! Me alegra verte por aquí. ¿Qué necesitas saber?",
+            "¡Hey! 👋 ¿Cómo van las cosas? ¿En qué te puedo asistir?"
+        ],
+        
+        'pregunta_estado': [
+            "¡Muy bien, gracias por preguntar! 🤖 Estoy aquí para ayudarte con tus consultas académicas.",
+            "¡Excelente! Funcionando al 100% y listo para ayudarte. ¿Qué necesitas?",
+            "¡Perfecto! Siempre contento de poder ayudar a estudiantes como tú. ¿En qué te apoyo?"
+        ],
+        
+        'pregunta_identidad': [
+            "Soy tu asistente virtual académico 🤖. Puedo ayudarte con calificaciones, reportes de riesgo, estadísticas y más. ¡Pregúntame lo que necesites!",
+            "¡Hola! Soy una IA especializada en educación. Mi trabajo es ayudarte con tus consultas académicas y darte recomendaciones personalizadas.",
+            "Soy tu compañero digital para todo lo académico 📚. Consulto la base de datos en tiempo real para darte información actualizada."
+        ],
+        
+        'emocional_negativo': [
+            "Lo siento mucho que te sientas así 😔. Recuerda que los desafíos académicos son temporales y siempre hay oportunidades de mejorar. ¿Te gustaría que revisemos tu situación académica juntos?",
+            "Entiendo que puede ser frustrante 💙. Estoy aquí para apoyarte. ¿Hay algo específico que te preocupa? Podemos buscar soluciones juntos.",
+            "Sé que a veces puede ser abrumador 🫂. Pero recuerda que cada dificultad es una oportunidad de crecimiento. ¿En qué área necesitas más apoyo?"
+        ],
+        
+        'emocional_positivo': [
+            "¡Me alegra mucho escuchar eso! 😄 ¡Sigue así! ¿Hay algo en lo que pueda ayudarte para mantener ese buen ánimo?",
+            "¡Qué bueno! 🎉 La actitud positiva es clave para el éxito académico. ¿Quieres revisar cómo van tus materias?",
+            "¡Excelente! 🌟 Me encanta ver estudiantes motivados. ¿En qué más puedo apoyarte?"
+        ],
+        
+        'agradecimiento': [
+            "¡De nada! 😊 Para eso estoy aquí. ¿Necesitas algo más?",
+            "¡Un placer ayudarte! 🤗 Cualquier otra cosa que necesites, solo pregunta.",
+            "¡Siempre es un gusto! 👍 ¿Hay algo más en lo que te pueda asistir?"
+        ],
+        
+        'despedida': [
+            "¡Hasta luego! 👋 Que tengas un excelente día. Aquí estaré cuando me necesites.",
+            "¡Nos vemos! 😊 ¡Que te vaya súper bien en tus estudios!",
+            "¡Adiós! 🌟 Recuerda que siempre puedes contar conmigo para tus consultas académicas."
+        ],
+        
+        'afirmacion': [
+            "¡Perfecto! 👍 ¿En qué más te puedo ayudar?",
+            "¡Genial! 😊 ¿Hay algo más que quieras saber?",
+            "¡Excelente! ¿Qué más necesitas?"
+        ],
+        
+        'negacion': [
+            "Entiendo 👌. Si cambias de opinión o necesitas algo más, aquí estaré.",
+            "Sin problema 😊. ¿Hay algo diferente en lo que te pueda ayudar?",
+            "Está bien 👍. Cualquier otra consulta que tengas, solo dímelo."
+        ]
+    }
+    
+    # Respuestas conversacionales
+    if intent in responses:
+        return random.choice(responses[intent])
+    
+    # Consultas académicas con datos
+    elif intent == 'calificaciones':
+        query = """
+        SELECT a.nombre, c.calificacion_final, c.estatus
+        FROM calificaciones c
+        JOIN asignaturas a ON c.asignatura_id = a.id
+        JOIN alumnos al ON c.alumno_id = al.id
+        WHERE al.usuario_id = %s
+        LIMIT 5
+        """
+        data = execute_query(query, [user_id])
+        
+        if data:
+            response = "📊 **Estadísticas del Sistema:**\n\n"
+        for name, query in queries:
+            result = execute_query(query)
+            if result:
+                response += f"• {name}: {result[0]['total']}\n"
+        
+        return response
+    
+    else:
+        return f"🤖 Hola! Recibí tu mensaje. El sistema está funcionando correctamente. ¿En qué te puedo ayudar?"
 
 @app.route('/', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
+def home():
+    """Página principal"""
     return jsonify({
-        "status": "ok",
-        "message": "IA Conversacional con ML - Railway",
-        "version": "2.0.0",
-        "features": [
-            "Machine Learning",
-            "Procesamiento Natural",
-            "Generación Automática SQL",
-            "Conversación Contextual",
-            "Recomendaciones Inteligentes"
-        ],
+        "status": "✅ FUNCIONANDO",
+        "message": "IA Conversacional - Railway",
+        "version": "1.0.0",
+        "endpoints": ["/api/test", "/api/chat", "/api/suggestions"],
         "timestamp": datetime.now().isoformat()
     })
 
 @app.route('/api/test', methods=['GET'])
-def test_system():
-    """Probar sistema completo"""
+def test():
+    """Test de conexión"""
     try:
-        results = {
-            "database": "❌",
-            "ai_modules": "❌", 
-            "ml_models": "❌",
-            "overall": "❌"
-        }
+        # Test BD
+        result = execute_query("SELECT 1 as test, 'Conexión exitosa' as mensaje")
         
-        # Test base de datos
-        try:
-            global db_connection
-            if db_connection is None:
-                from database.connection import DatabaseConnection
-                db_connection = DatabaseConnection()
-            
-            if db_connection.test_connection():
-                results["database"] = "✅"
-                logger.info("✅ Base de datos: OK")
-        except Exception as e:
-            logger.error(f"❌ Base de datos: {e}")
-        
-        # Test módulos IA
-        try:
-            from models.conversation_ai import ConversationAI
-            from utils.text_processor import TextProcessor
-            from utils.intent_classifier import IntentClassifier
-            results["ai_modules"] = "✅"
-            logger.info("✅ Módulos IA: OK")
-        except Exception as e:
-            logger.error(f"❌ Módulos IA: {e}")
-        
-        # Test ML
-        try:
-            import sklearn
-            import pandas
-            import numpy
-            results["ml_models"] = "✅"
-            logger.info("✅ Librerías ML: OK")
-        except Exception as e:
-            logger.error(f"❌ Librerías ML: {e}")
-        
-        # Overall status
-        if all(status == "✅" for status in results.values() if status != "❌"):
-            results["overall"] = "✅"
-            message = "🚀 Sistema completamente funcional"
+        if result:
+            return jsonify({
+                "success": True,
+                "message": "🚀 Sistema completamente funcional",
+                "database": "✅ Conectado",
+                "result": result[0],
+                "timestamp": datetime.now().isoformat()
+            })
         else:
-            message = "⚠️ Sistema parcialmente funcional"
-        
-        return jsonify({
-            "success": results["overall"] == "✅",
-            "message": message,
-            "tests": results,
-            "timestamp": datetime.now().isoformat()
-        })
-        
+            return jsonify({
+                "success": False,
+                "message": "❌ Error de conexión a BD",
+                "database": "❌ Desconectado"
+            }), 500
+            
     except Exception as e:
-        logger.error(f"Error en test del sistema: {e}")
         return jsonify({
             "success": False,
             "error": str(e),
-            "message": "Error probando el sistema"
+            "message": "Error en test del sistema"
         }), 500
 
-@app.route('/api/chat', methods=['POST', 'OPTIONS'])
+@app.route('/api/chat', methods=['POST'])
 def chat():
-    """Endpoint principal para conversación con IA completa"""
-    if request.method == 'OPTIONS':
-        return jsonify({"status": "ok"})
-    
+    """Chat principal"""
     try:
-        # Obtener instancia de IA
-        ai = get_ai_instance()
-        
-        # Obtener datos del request
         data = request.get_json()
         
         if not data or 'message' not in data:
-            return jsonify({
-                "error": "Mensaje requerido"
-            }), 400
+            return jsonify({"error": "Mensaje requerido"}), 400
         
-        user_message = data['message']
-        user_role = data.get('role', 'alumno')
+        message = data['message']
+        role = data.get('role', 'alumno')
         user_id = data.get('user_id', 1)
         
-        logger.info(f"Procesando mensaje: {user_message} (Role: {user_role}, ID: {user_id})")
+        logger.info(f"Chat: {message} (role: {role})")
         
-        # Procesar mensaje con la IA completa
-        response = ai.process_message(
-            message=user_message,
-            user_role=user_role,
-            user_id=user_id
-        )
+        # Clasificar y responder
+        intent = classify_intent(message)
+        response_text = get_response(intent, role, user_id)
         
         return jsonify({
             "success": True,
-            "response": response['text'],
-            "data": response.get('data', None),
-            "query_used": response.get('query', None),
-            "recommendations": response.get('recommendations', []),
-            "intent": response.get('intent'),
-            "entities": response.get('entities', {}),
-            "confidence": response.get('confidence', 0.0),
-            "conversational": True,
-            "timestamp": response.get('timestamp')
-        })
-        
-    except Exception as e:
-        logger.error(f"Error en chat: {e}")
-        logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "success": False,
-            "error": "Error procesando mensaje",
-            "details": str(e),
-            "suggestion": "Verifica que todos los módulos estén instalados correctamente"
-        }), 500
-
-@app.route('/api/suggestions', methods=['GET'])
-def get_suggestions():
-    """Obtener sugerencias inteligentes"""
-    try:
-        ai = get_ai_instance()
-        role = request.args.get('role', 'alumno')
-        suggestions = ai.get_suggestions(role)
-        
-        return jsonify({
-            "success": True,
-            "suggestions": suggestions,
-            "role": role
-        })
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo sugerencias: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error obteniendo sugerencias"
-        }), 500
-
-@app.route('/api/analytics', methods=['GET'])
-def get_analytics():
-    """Obtener analytics del sistema"""
-    try:
-        ai = get_ai_instance()
-        analytics = ai.get_system_analytics()
-        
-        return jsonify({
-            "success": True,
-            "analytics": analytics
-        })
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo analytics: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error obteniendo analytics"
-        }), 500
-
-@app.route('/api/train', methods=['POST'])
-def train_model():
-    """Endpoint para entrenar/re-entrenar modelos"""
-    try:
-        # Solo permitir a directivos
-        data = request.get_json()
-        user_role = data.get('role', '')
-        
-        if user_role != 'directivo':
-            return jsonify({
-                "success": False,
-                "error": "Solo directivos pueden entrenar modelos"
-            }), 403
-        
-        logger.info("Iniciando entrenamiento de modelos...")
-        
-        from training.train_model import AIModelTrainer
-        
-        trainer = AIModelTrainer()
-        metrics = trainer.train_all_models()
-        trainer.save_models()
-        
-        return jsonify({
-            "success": True,
-            "message": "Modelos entrenados exitosamente",
-            "metrics": metrics,
+            "response": response_text,
+            "intent": intent,
+            "role": role,
             "timestamp": datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Error entrenando modelos: {e}")
+        logger.error(f"Error chat: {e}")
         return jsonify({
             "success": False,
-            "error": "Error en entrenamiento",
+            "error": "Error procesando mensaje",
             "details": str(e)
         }), 500
 
-@app.route('/api/schema', methods=['GET'])
-def get_schema_info():
-    """Obtener información del esquema de la base de datos"""
+@app.route('/api/suggestions', methods=['GET'])
+def suggestions():
+    """Sugerencias por rol"""
+    role = request.args.get('role', 'alumno')
+    
+    suggestions_map = {
+        'alumno': [
+            "¿Cuáles son mis calificaciones?",
+            "¿Cómo van mis materias?",
+            "¿Tengo algún problema académico?"
+        ],
+        'profesor': [
+            "¿Qué alumnos están en riesgo?",
+            "¿Cuáles son mis grupos?",
+            "¿Hay reportes pendientes?"
+        ],
+        'directivo': [
+            "¿Cuáles son las estadísticas generales?",
+            "¿Cómo va el rendimiento por carrera?",
+            "¿Qué alumnos necesitan atención?"
+        ]
+    }
+    
+    return jsonify({
+        "success": True,
+        "suggestions": suggestions_map.get(role, suggestions_map['alumno']),
+        "role": role
+    })
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint no encontrado"}), 404
+
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify({"error": "Error interno del servidor"}), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    logger.info(f"🚂 Iniciando servidor en puerto {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)**Aquí tienes tus calificaciones:**\n\n"
+            total_promedio = 0
+            materias_count = 0
+            
+            for row in data:
+                if row['calificacion_final']:
+                    total_promedio += row['calificacion_final']
+                    materias_count += 1
+                
+                status = "✅" if row['estatus'] == 'aprobado' else "📝" if row['estatus'] == 'cursando' else "❌"
+                grade = f"{row['calificacion_final']:.1f}" if row['calificacion_final'] else 'Sin calificar'
+                response += f"{status} **{row['nombre']}**: {grade}\n"
+            
+            if materias_count > 0:
+                promedio_actual = total_promedio / materias_count
+                response += f"\n📈 **Tu promedio actual**: {promedio_actual:.2f}\n"
+                
+                if promedio_actual >= 9.0:
+                    response += "\n🌟 ¡Excelente trabajo! Sigues por muy buen camino."
+                elif promedio_actual >= 8.0:
+                    response += "\n👍 ¡Muy bien! Tu rendimiento es bueno."
+                elif promedio_actual >= 7.0:
+                    response += "\n💪 Vas bien, pero hay espacio para mejorar."
+                else:
+                    response += "\n⚠️ Necesitas enfocarte más en tus estudios. ¿Te gustaría algunas recomendaciones?"
+            
+            response += "\n\n❓ ¿Te gustaría ver estrategias para mejorar en alguna materia específica?"
+            return response
+        else:
+            return "📚 No encontré calificaciones registradas para ti. ¿Es tu primer cuatrimestre? Si crees que es un error, puedes contactar a tu coordinador académico. 😊"
+    
+    elif intent == 'riesgo':
+        query = """
+        SELECT u.nombre, u.apellido, rr.nivel_riesgo, rr.tipo_riesgo, rr.descripcion
+        FROM reportes_riesgo rr
+        JOIN alumnos al ON rr.alumno_id = al.id
+        JOIN usuarios u ON al.usuario_id = u.id
+        WHERE rr.estado IN ('abierto', 'en_proceso')
+        ORDER BY CASE rr.nivel_riesgo 
+            WHEN 'critico' THEN 1 
+            WHEN 'alto' THEN 2 
+            WHEN 'medio' THEN 3 
+            ELSE 4 END
+        LIMIT 8
+        """
+        data = execute_query(query)
+        
+        if data:
+            criticos = len([d for d in data if d['nivel_riesgo'] == 'critico'])
+            response = f"🚨 **Alumnos que necesitan atención** ({len(data)} casos activos):\n\n"
+            
+            for row in data:
+                emoji = "🔴" if row['nivel_riesgo'] == 'critico' else "🟡" if row['nivel_riesgo'] == 'alto' else "🟠"
+                response += f"{emoji} **{row['nombre']} {row['apellido']}**\n"
+                response += f"   Riesgo: {row['nivel_riesgo']} ({row['tipo_riesgo']})\n"
+                if row['descripcion']:
+                    response += f"   📝 {row['descripcion'][:80]}...\n"
+                response += "\n"
+            
+            if criticos > 0:
+                response += f"\n🚨 **ATENCIÓN URGENTE**: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n"
+                response += "\n💡 **Recomendaciones**:\n"
+                response += "• Contactar a padres/tutores hoy mismo\n"
+                response += "• Programar citas individuales esta semana\n"
+                response += "• Evaluar apoyos adicionales (económicos, psicológicos)\n"
+            
+            response += "\n❓ ¿Te gustaría que genere un plan de intervención detallado?"
+            return response
+        else:
+            return "✅ ¡Excelente noticia! No hay alumnos en situación de riesgo actualmente. El sistema educativo está funcionando bien. 😊"
+    
+    elif intent == 'conversacion_general':
+        general_responses = [
+            f"Interesante lo que me dices: '{message}' 🤔. Como tu asistente académico, ¿hay algo relacionado con tus estudios en lo que te pueda ayudar?",
+            f"Entiendo tu mensaje sobre '{message}' 😊. ¿Te gustaría que revisemos algo específico de tu situación académica?",
+            f"Gracias por compartir eso conmigo. Como asistente educativo, estoy aquí para apoyarte. ¿Hay alguna consulta académica que tengas?",
+            f"Me parece muy interesante lo que mencionas. ¿Podemos enfocar nuestra conversación en cómo te puedo ayudar con tus estudios? 📚"
+        ]
+        return random.choice(general_responses)
+    
+    # Default conversacional
+    return f"Hmm, entiendo que me dices '{message}' 🤔. Como tu asistente académico, ¿en qué puedo ayudarte específicamente? Puedo consultar calificaciones, reportes de riesgo, estadísticas y más. 😊"
+
+@app.route('/', methods=['GET'])
+def home():
+    """Página principal"""
+    return jsonify({
+        "status": "✅ FUNCIONANDO",
+        "message": "IA Conversacional Inteligente - Railway",
+        "version": "2.0.0",
+        "features": ["Conversación Natural", "Contexto Mantenido", "Consultas BD", "Respuestas Emocionales"],
+        "endpoints": ["/api/test", "/api/chat", "/api/suggestions"],
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/api/test', methods=['GET'])
+def test():
+    """Test de conexión"""
     try:
-        from database.schema_analyzer import SchemaAnalyzer
+        # Test BD
+        result = execute_query("SELECT 1 as test, 'Conexión exitosa' as mensaje")
         
-        global db_connection
-        if db_connection is None:
-            from database.connection import DatabaseConnection
-            db_connection = DatabaseConnection()
+        if result:
+            return jsonify({
+                "success": True,
+                "message": "🚀 Sistema completamente funcional",
+                "database": "✅ Conectado",
+                "conversation": "✅ IA Conversacional Activa",
+                "result": result[0],
+                "timestamp": datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "❌ Error de conexión a BD",
+                "database": "❌ Desconectado"
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "message": "Error en test del sistema"
+        }), 500
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """Chat conversacional inteligente"""
+    try:
+        data = request.get_json()
         
-        analyzer = SchemaAnalyzer(db_connection)
-        schema_summary = analyzer.get_schema_summary()
+        if not data or 'message' not in data:
+            return jsonify({"error": "Mensaje requerido"}), 400
+        
+        message = data['message'].strip()
+        role = data.get('role', 'alumno')
+        user_id = data.get('user_id', 1)
+        
+        if not message:
+            return jsonify({
+                "success": True,
+                "response": "😅 Parece que no escribiste nada. ¿En qué te puedo ayudar?",
+                "intent": "mensaje_vacio"
+            })
+        
+        logger.info(f"Chat conversacional: {message} (role: {role}, user: {user_id})")
+        
+        # Obtener contexto
+        context = get_conversation_context(user_id)
+        
+        # Clasificar intención
+        intent = classify_intent(message, context)
+        
+        # Generar respuesta conversacional
+        response_text = get_conversational_response(intent, message, context, role, user_id)
+        
+        # Actualizar contexto
+        update_context(user_id, message, intent, response_text)
         
         return jsonify({
             "success": True,
-            "schema": schema_summary
+            "response": response_text,
+            "intent": intent,
+            "conversational": True,
+            "context_messages": len(context['messages']),
+            "role": role,
+            "timestamp": datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Error obteniendo esquema: {e}")
+        logger.error(f"Error chat: {e}")
         return jsonify({
             "success": False,
-            "error": "Error obteniendo información del esquema"
+            "error": "Error procesando mensaje",
+            "response": "Lo siento, tuve un problema procesando tu mensaje 😅. ¿Puedes intentar de nuevo?",
+            "details": str(e)
         }), 500
 
-@app.route('/api/conversation/context/<int:user_id>', methods=['GET'])
-def get_conversation_context(user_id):
-    """Obtener contexto de conversación de un usuario"""
-    try:
-        ai = get_ai_instance()
-        context = ai.get_conversation_context()
-        
-        return jsonify({
-            "success": True,
-            "context": context,
-            "user_id": user_id
-        })
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo contexto: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error obteniendo contexto de conversación"
-        }), 500
+@app.route('/api/suggestions', methods=['GET'])
+def suggestions():
+    """Sugerencias conversacionales por rol"""
+    role = request.args.get('role', 'alumno')
+    
+    suggestions_map = {
+        'alumno': [
+            "Hola, ¿cómo estás?",
+            "¿Cuáles son mis calificaciones?",
+            "¿Cómo van mis materias este cuatrimestre?",
+            "Me siento preocupado por mis notas",
+            "¿Qué puedes hacer por mí?",
+            "Gracias por tu ayuda"
+        ],
+        'profesor': [
+            "¡Buenos días!",
+            "¿Qué alumnos están en riesgo?",
+            "¿Cuáles son mis grupos asignados?",
+            "¿Hay reportes urgentes?",
+            "¿Cómo puedo ayudar a mis estudiantes?",
+            "Necesito estadísticas de mi clase"
+        ],
+        'directivo': [
+            "Hola, ¿cómo va todo?",
+            "¿Cuáles son las estadísticas generales?",
+            "¿Cómo va el rendimiento por carrera?",
+            "¿Qué alumnos necesitan atención urgente?",
+            "Dame un resumen del sistema",
+            "¿Hay algo preocupante que deba saber?"
+        ]
+    }
+    
+    return jsonify({
+        "success": True,
+        "suggestions": suggestions_map.get(role, suggestions_map['alumno']),
+        "role": role,
+        "message": f"Sugerencias conversacionales para {role}"
+    })
 
-@app.route('/api/conversation/clear/<int:user_id>', methods=['POST'])
-def clear_conversation_context(user_id):
+@app.route('/api/context/<int:user_id>', methods=['GET'])
+def get_context(user_id):
+    """Ver contexto de conversación"""
+    context = get_conversation_context(user_id)
+    return jsonify({
+        "success": True,
+        "user_id": user_id,
+        "messages_count": len(context['messages']),
+        "last_intent": context['last_intent'],
+        "recent_messages": context['messages'][-3:] if context['messages'] else []
+    })
+
+@app.route('/api/context/<int:user_id>', methods=['DELETE'])
+def clear_context(user_id):
     """Limpiar contexto de conversación"""
-    try:
-        ai = get_ai_instance()
-        ai.clear_context()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Contexto limpiado para usuario {user_id}"
-        })
-        
-    except Exception as e:
-        logger.error(f"Error limpiando contexto: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error limpiando contexto"
-        }), 500
+    if user_id in conversation_contexts:
+        del conversation_contexts[user_id]
+    
+    return jsonify({
+        "success": True,
+        "message": f"Contexto limpiado para usuario {user_id}"
+    })
 
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({
-        "error": "Endpoint no encontrado",
-        "available_endpoints": [
-            "GET /",
-            "GET /api/test", 
-            "POST /api/chat",
-            "GET /api/suggestions",
-            "GET /api/analytics",
-            "POST /api/train",
-            "GET /api/schema"
-        ]
+        "error": "Endpoint no encontrado 😅", 
+        "message": "¿Estás seguro de la URL? Aquí están los endpoints disponibles:",
+        "endpoints": ["/", "/api/test", "/api/chat", "/api/suggestions"]
     }), 404
 
 @app.errorhandler(500)
-def internal_error(error):
-    logger.error(f"Error 500: {str(error)}")
+def server_error(error):
     return jsonify({
-        "error": "Error interno del servidor",
-        "message": "Revisa los logs para más detalles"
+        "error": "Error interno del servidor 😱",
+        "message": "Algo salió mal, pero trabajaré en arreglarlo"
     }), 500
-
-# Intentar inicializar IA al arrancar
-@app.before_first_request
-def startup():
-    """Inicializar sistema al arrancar"""
-    logger.info("🚀 Iniciando IA Conversacional en Railway...")
-    try:
-        success = initialize_ai()
-        if success:
-            logger.info("✅ Sistema inicializado correctamente")
-        else:
-            logger.warning("⚠️ Sistema iniciado parcialmente")
-    except Exception as e:
-        logger.error(f"❌ Error en inicialización: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    logger.info(f"🚂 Iniciando IA Conversacional en puerto {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)**Estadísticas del Sistema:**\n\n"
+        for name, query in queries:
+            result = execute_query(query)
+            if result:
+                response += f"• {name}: {result[0]['total']}\n"
+        
+        return response
     
-    logger.info(f"🚂 Iniciando servidor Railway en puerto {port}")
+    else:
+        return f"🤖 Hola! Recibí tu mensaje. El sistema está funcionando correctamente. ¿En qué te puedo ayudar?"
+
+@app.route('/', methods=['GET'])
+def home():
+    """Página principal"""
+    return jsonify({
+        "status": "✅ FUNCIONANDO",
+        "message": "IA Conversacional - Railway",
+        "version": "1.0.0",
+        "endpoints": ["/api/test", "/api/chat", "/api/suggestions"],
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/api/test', methods=['GET'])
+def test():
+    """Test de conexión"""
+    try:
+        # Test BD
+        result = execute_query("SELECT 1 as test, 'Conexión exitosa' as mensaje")
+        
+        if result:
+            return jsonify({
+                "success": True,
+                "message": "🚀 Sistema completamente funcional",
+                "database": "✅ Conectado",
+                "result": result[0],
+                "timestamp": datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "❌ Error de conexión a BD",
+                "database": "❌ Desconectado"
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "message": "Error en test del sistema"
+        }), 500
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """Chat principal"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'message' not in data:
+            return jsonify({"error": "Mensaje requerido"}), 400
+        
+        message = data['message']
+        role = data.get('role', 'alumno')
+        user_id = data.get('user_id', 1)
+        
+        logger.info(f"Chat: {message} (role: {role})")
+        
+        # Clasificar y responder
+        intent = classify_intent(message)
+        response_text = get_response(intent, role, user_id)
+        
+        return jsonify({
+            "success": True,
+            "response": response_text,
+            "intent": intent,
+            "role": role,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error chat: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Error procesando mensaje",
+            "details": str(e)
+        }), 500
+
+@app.route('/api/suggestions', methods=['GET'])
+def suggestions():
+    """Sugerencias por rol"""
+    role = request.args.get('role', 'alumno')
     
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=debug
-    )
+    suggestions_map = {
+        'alumno': [
+            "¿Cuáles son mis calificaciones?",
+            "¿Cómo van mis materias?",
+            "¿Tengo algún problema académico?"
+        ],
+        'profesor': [
+            "¿Qué alumnos están en riesgo?",
+            "¿Cuáles son mis grupos?",
+            "¿Hay reportes pendientes?"
+        ],
+        'directivo': [
+            "¿Cuáles son las estadísticas generales?",
+            "¿Cómo va el rendimiento por carrera?",
+            "¿Qué alumnos necesitan atención?"
+        ]
+    }
+    
+    return jsonify({
+        "success": True,
+        "suggestions": suggestions_map.get(role, suggestions_map['alumno']),
+        "role": role
+    })
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint no encontrado"}), 404
+
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify({"error": "Error interno del servidor"}), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    logger.info(f"🚂 Iniciando servidor en puerto {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)
