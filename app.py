@@ -457,15 +457,15 @@ def get_conversational_response(intent, message, context, role='directivo', user
             materias_por_carrera = {}
             for row in data:
                 carrera = row['carrera'] if row['carrera'] else 'Sin asignar'
-                if carrera not in materias
+                if carrera not in materias_por_carrera:
                 # CONTINUACIÓN DEL CÓDIGO - PARTE 2
 
-        response += f"**Resumen Estadístico del Rendimiento:**\n"
-        response += f"• Promedio general del sistema: {promedio_general:.2f} puntos\n"
-        response += f"• Evaluaciones en excelencia: {calificaciones_excelencia} ({(calificaciones_excelencia/len(data)*100):.1f}%)\n"
-        response += f"• Evaluaciones en riesgo: {calificaciones_riesgo} ({(calificaciones_riesgo/len(data)*100):.1f}%)\n\n"
+                    response += f"**Resumen Estadístico del Rendimiento:**\n"
+                    response += f"• Promedio general del sistema: {promedio_general:.2f} puntos\n"
+                    response += f"• Evaluaciones en excelencia: {calificaciones_excelencia} ({(calificaciones_excelencia/len(data)*100):.1f}%)\n"
+                    response += f"• Evaluaciones en riesgo: {calificaciones_riesgo} ({(calificaciones_riesgo/len(data)*100):.1f}%)\n\n"
         
-        response += "**Top Rendimiento Académico:**\n"
+                    response += "**Top Rendimiento Académico:**\n"
         for i, row in enumerate(data[:10], 1):
             status = "Excelencia" if row['calificacion_final'] >= 9.0 else "Sobresaliente" if row['calificacion_final'] >= 8.0 else "Satisfactorio" if row['calificacion_final'] >= 7.0 else "Requiere Atención"
             response += f"{i}. **{row['alumno_nombre']}** ({row['matricula']})\n"
