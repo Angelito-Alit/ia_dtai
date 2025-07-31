@@ -4,7 +4,6 @@ import os
 import logging
 import mysql.connector
 from datetime import datetime
-import re
 import random
 
 # Configurar logging
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Contexto de conversación simple (en memoria)
+# Contexto de conversación
 conversation_contexts = {}
 
 def get_db_config():
@@ -34,9 +33,10 @@ def get_db_connection():
     try:
         config = get_db_config()
         connection = mysql.connector.connect(**config)
+        logger.info("✅ Conexión a BD exitosa")
         return connection
     except Exception as e:
-        logger.error(f"Error BD: {e}")
+        logger.error(f"❌ Error BD: {e}")
         return None
 
 def execute_query(query, params=None):
@@ -51,41 +51,37 @@ def execute_query(query, params=None):
         result = cursor.fetchall()
         cursor.close()
         connection.close()
+        logger.info(f"✅ Query ejecutada: {len(result)} filas")
         return result
     except Exception as e:
-        logger.error(f"Error query: {e}")
+        logger.error(f"❌ Error query: {e}")
         if connection:
             connection.close()
         return None
 
 def get_conversation_context(user_id):
-    """Obtener contexto de conversación"""
     if user_id not in conversation_contexts:
         conversation_contexts[user_id] = {
             'messages': [],
-            'last_intent': None,
-            'user_name': None,
-            'mood': 'neutral'
+            'last_intent': None
         }
     return conversation_contexts[user_id]
 
 def update_context(user_id, message, intent, response):
-    """Actualizar contexto"""
     context = get_conversation_context(user_id)
     context['messages'].append({
         'user': message,
-        'bot': response,
+        'bot': response[:100],
         'intent': intent,
         'time': datetime.now()
     })
     context['last_intent'] = intent
     
-    # Mantener solo últimas 5 conversaciones
     if len(context['messages']) > 5:
         context['messages'] = context['messages'][-5:]
 
 def classify_intent(message, context):
-    """Clasificador conversacional inteligente"""
+    """Clasificador conversacional"""
     msg = message.lower().strip()
     
     # Saludos y cortesías
@@ -138,8 +134,9 @@ def classify_intent(message, context):
     return 'conversacion_general'
 
 def get_conversational_response(intent, message, context, role='alumno', user_id=1):
-    """Generar respuesta conversacional inteligente"""
+    """Generar respuesta conversacional con datos reales de BD"""
     
+    # Respuestas conversacionales
     responses = {
         'saludo': [
             "¡Hola! 😊 ¿Cómo estás? Soy tu asistente virtual académico.",
@@ -197,174 +194,64 @@ def get_conversational_response(intent, message, context, role='alumno', user_id
         ]
     }
     
-    # Respuestas conversacionales
+    # Respuestas conversacionales básicas
     if intent in responses:
         return random.choice(responses[intent])
     
-    # Consultas académicas con datos
+    # Consultas académicas con datos REALES de BD
     elif intent == 'calificaciones':
         query = """
-        SELECT a.nombre, c.calificacion_final, c.estatus
+        SELECT a.nombre, c.calificacion_final, c.estatus, c.parcial_1, c.parcial_2, c.parcial_3
         FROM calificaciones c
         JOIN asignaturas a ON c.asignatura_id = a.id
         JOIN alumnos al ON c.alumno_id = al.id
         WHERE al.usuario_id = %s
-        LIMIT 5
+        ORDER BY a.nombre
+        LIMIT 10
         """
         data = execute_query(query, [user_id])
         
         if data:
-            response = "📊 **Estadísticas del Sistema:**\n\n"
-        for name, query in queries:
-            result = execute_query(query)
-            if result:
-                response += f"• {name}: {result[0]['total']}\n"
-        
-        return response
-    
-    else:
-        return f"🤖 Hola! Recibí tu mensaje. El sistema está funcionando correctamente. ¿En qué te puedo ayudar?"
-
-@app.route('/', methods=['GET'])
-def home():
-    """Página principal"""
-    return jsonify({
-        "status": "✅ FUNCIONANDO",
-        "message": "IA Conversacional - Railway",
-        "version": "1.0.0",
-        "endpoints": ["/api/test", "/api/chat", "/api/suggestions"],
-        "timestamp": datetime.now().isoformat()
-    })
-
-@app.route('/api/test', methods=['GET'])
-def test():
-    """Test de conexión"""
-    try:
-        # Test BD
-        result = execute_query("SELECT 1 as test, 'Conexión exitosa' as mensaje")
-        
-        if result:
-            return jsonify({
-                "success": True,
-                "message": "🚀 Sistema completamente funcional",
-                "database": "✅ Conectado",
-                "result": result[0],
-                "timestamp": datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "message": "❌ Error de conexión a BD",
-                "database": "❌ Desconectado"
-            }), 500
-            
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Error en test del sistema"
-        }), 500
-
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    """Chat principal"""
-    try:
-        data = request.get_json()
-        
-        if not data or 'message' not in data:
-            return jsonify({"error": "Mensaje requerido"}), 400
-        
-        message = data['message']
-        role = data.get('role', 'alumno')
-        user_id = data.get('user_id', 1)
-        
-        logger.info(f"Chat: {message} (role: {role})")
-        
-        # Clasificar y responder
-        intent = classify_intent(message)
-        response_text = get_response(intent, role, user_id)
-        
-        return jsonify({
-            "success": True,
-            "response": response_text,
-            "intent": intent,
-            "role": role,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error chat: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error procesando mensaje",
-            "details": str(e)
-        }), 500
-
-@app.route('/api/suggestions', methods=['GET'])
-def suggestions():
-    """Sugerencias por rol"""
-    role = request.args.get('role', 'alumno')
-    
-    suggestions_map = {
-        'alumno': [
-            "¿Cuáles son mis calificaciones?",
-            "¿Cómo van mis materias?",
-            "¿Tengo algún problema académico?"
-        ],
-        'profesor': [
-            "¿Qué alumnos están en riesgo?",
-            "¿Cuáles son mis grupos?",
-            "¿Hay reportes pendientes?"
-        ],
-        'directivo': [
-            "¿Cuáles son las estadísticas generales?",
-            "¿Cómo va el rendimiento por carrera?",
-            "¿Qué alumnos necesitan atención?"
-        ]
-    }
-    
-    return jsonify({
-        "success": True,
-        "suggestions": suggestions_map.get(role, suggestions_map['alumno']),
-        "role": role
-    })
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({"error": "Endpoint no encontrado"}), 404
-
-@app.errorhandler(500)
-def server_error(error):
-    return jsonify({"error": "Error interno del servidor"}), 500
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    logger.info(f"🚂 Iniciando servidor en puerto {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)**Aquí tienes tus calificaciones:**\n\n"
+            response = "📊 **Aquí tienes tus calificaciones:**\n\n"
             total_promedio = 0
             materias_count = 0
+            materias_riesgo = 0
             
             for row in data:
                 if row['calificacion_final']:
                     total_promedio += row['calificacion_final']
                     materias_count += 1
+                    if row['calificacion_final'] < 7.0:
+                        materias_riesgo += 1
                 
                 status = "✅" if row['estatus'] == 'aprobado' else "📝" if row['estatus'] == 'cursando' else "❌"
                 grade = f"{row['calificacion_final']:.1f}" if row['calificacion_final'] else 'Sin calificar'
                 response += f"{status} **{row['nombre']}**: {grade}\n"
+                
+                # Mostrar parciales si están disponibles
+                if row['parcial_1'] or row['parcial_2'] or row['parcial_3']:
+                    parciales = []
+                    if row['parcial_1']: parciales.append(f"P1: {row['parcial_1']:.1f}")
+                    if row['parcial_2']: parciales.append(f"P2: {row['parcial_2']:.1f}")
+                    if row['parcial_3']: parciales.append(f"P3: {row['parcial_3']:.1f}")
+                    response += f"   📝 {' | '.join(parciales)}\n"
+                response += "\n"
             
             if materias_count > 0:
                 promedio_actual = total_promedio / materias_count
-                response += f"\n📈 **Tu promedio actual**: {promedio_actual:.2f}\n"
+                response += f"📈 **Tu promedio actual**: {promedio_actual:.2f}\n\n"
                 
                 if promedio_actual >= 9.0:
-                    response += "\n🌟 ¡Excelente trabajo! Sigues por muy buen camino."
+                    response += "🌟 ¡Excelente trabajo! Sigues por muy buen camino."
                 elif promedio_actual >= 8.0:
-                    response += "\n👍 ¡Muy bien! Tu rendimiento es bueno."
+                    response += "👍 ¡Muy bien! Tu rendimiento es bueno."
                 elif promedio_actual >= 7.0:
-                    response += "\n💪 Vas bien, pero hay espacio para mejorar."
+                    response += "💪 Vas bien, pero hay espacio para mejorar."
                 else:
-                    response += "\n⚠️ Necesitas enfocarte más en tus estudios. ¿Te gustaría algunas recomendaciones?"
+                    response += "⚠️ Necesitas enfocarte más en tus estudios."
+                
+                if materias_riesgo > 0:
+                    response += f"\n⚠️ Tienes {materias_riesgo} materia(s) por debajo de 7.0"
             
             response += "\n\n❓ ¿Te gustaría ver estrategias para mejorar en alguna materia específica?"
             return response
@@ -373,17 +260,18 @@ if __name__ == '__main__':
     
     elif intent == 'riesgo':
         query = """
-        SELECT u.nombre, u.apellido, rr.nivel_riesgo, rr.tipo_riesgo, rr.descripcion
+        SELECT u.nombre, u.apellido, al.matricula, rr.nivel_riesgo, rr.tipo_riesgo, rr.descripcion, car.nombre as carrera
         FROM reportes_riesgo rr
         JOIN alumnos al ON rr.alumno_id = al.id
         JOIN usuarios u ON al.usuario_id = u.id
+        JOIN carreras car ON al.carrera_id = car.id
         WHERE rr.estado IN ('abierto', 'en_proceso')
         ORDER BY CASE rr.nivel_riesgo 
             WHEN 'critico' THEN 1 
             WHEN 'alto' THEN 2 
             WHEN 'medio' THEN 3 
             ELSE 4 END
-        LIMIT 8
+        LIMIT 10
         """
         data = execute_query(query)
         
@@ -393,15 +281,16 @@ if __name__ == '__main__':
             
             for row in data:
                 emoji = "🔴" if row['nivel_riesgo'] == 'critico' else "🟡" if row['nivel_riesgo'] == 'alto' else "🟠"
-                response += f"{emoji} **{row['nombre']} {row['apellido']}**\n"
+                response += f"{emoji} **{row['nombre']} {row['apellido']}** ({row['matricula']})\n"
+                response += f"   Carrera: {row['carrera']}\n"
                 response += f"   Riesgo: {row['nivel_riesgo']} ({row['tipo_riesgo']})\n"
                 if row['descripcion']:
                     response += f"   📝 {row['descripcion'][:80]}...\n"
                 response += "\n"
             
             if criticos > 0:
-                response += f"\n🚨 **ATENCIÓN URGENTE**: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n"
-                response += "\n💡 **Recomendaciones**:\n"
+                response += f"🚨 **ATENCIÓN URGENTE**: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n\n"
+                response += "💡 **Recomendaciones**:\n"
                 response += "• Contactar a padres/tutores hoy mismo\n"
                 response += "• Programar citas individuales esta semana\n"
                 response += "• Evaluar apoyos adicionales (económicos, psicológicos)\n"
@@ -410,6 +299,61 @@ if __name__ == '__main__':
             return response
         else:
             return "✅ ¡Excelente noticia! No hay alumnos en situación de riesgo actualmente. El sistema educativo está funcionando bien. 😊"
+    
+    elif intent == 'promedio':
+        query = """
+        SELECT c.nombre as carrera, 
+               COUNT(al.id) as total_alumnos,
+               ROUND(AVG(al.promedio_general), 2) as promedio_carrera,
+               COUNT(CASE WHEN al.promedio_general < 7.0 THEN 1 END) as alumnos_riesgo
+        FROM carreras c
+        LEFT JOIN alumnos al ON c.id = al.carrera_id
+        WHERE al.estado_alumno = 'activo'
+        GROUP BY c.id, c.nombre
+        ORDER BY promedio_carrera DESC
+        LIMIT 10
+        """
+        data = execute_query(query)
+        
+        if data:
+            response = "📈 **Rendimiento por Carrera:**\n\n"
+            for row in data:
+                porcentaje_riesgo = (row['alumnos_riesgo'] / row['total_alumnos'] * 100) if row['total_alumnos'] > 0 else 0
+                emoji = "🟢" if porcentaje_riesgo < 10 else "🟡" if porcentaje_riesgo < 25 else "🔴"
+                
+                response += f"{emoji} **{row['carrera']}**\n"
+                response += f"   Alumnos: {row['total_alumnos']}\n"
+                response += f"   Promedio: {row['promedio_carrera']}\n"
+                response += f"   En riesgo: {row['alumnos_riesgo']} ({porcentaje_riesgo:.1f}%)\n\n"
+            
+            response += "💡 ¿Te gustaría ver un análisis más detallado de alguna carrera específica?"
+            return response
+        else:
+            return "📊 No se encontraron datos de promedios por carrera."
+    
+    elif intent == 'estadisticas':
+        queries = [
+            ("Total Alumnos Activos", "SELECT COUNT(*) as total FROM alumnos WHERE estado_alumno = 'activo'"),
+            ("Total Carreras", "SELECT COUNT(*) as total FROM carreras WHERE activa = 1"),
+            ("Reportes Abiertos", "SELECT COUNT(*) as total FROM reportes_riesgo WHERE estado IN ('abierto', 'en_proceso')"),
+            ("Solicitudes Pendientes", "SELECT COUNT(*) as total FROM solicitudes_ayuda WHERE estado IN ('pendiente', 'en_atencion')")
+        ]
+        
+        response = "📊 **Estadísticas del Sistema:**\n\n"
+        
+        for name, query in queries:
+            result = execute_query(query)
+            if result:
+                response += f"• **{name}**: {result[0]['total']}\n"
+        
+        # Agregar promedio general del sistema
+        avg_query = "SELECT ROUND(AVG(promedio_general), 2) as promedio_sistema FROM alumnos WHERE estado_alumno = 'activo' AND promedio_general > 0"
+        avg_result = execute_query(avg_query)
+        if avg_result and avg_result[0]['promedio_sistema']:
+            response += f"• **Promedio General del Sistema**: {avg_result[0]['promedio_sistema']}\n"
+        
+        response += "\n🎯 ¿Te gustaría un análisis más profundo de algún área específica?"
+        return response
     
     elif intent == 'conversacion_general':
         general_responses = [
@@ -425,28 +369,26 @@ if __name__ == '__main__':
 
 @app.route('/', methods=['GET'])
 def home():
-    """Página principal"""
     return jsonify({
         "status": "✅ FUNCIONANDO",
-        "message": "IA Conversacional Inteligente - Railway",
+        "message": "IA Conversacional con MySQL - Railway",
         "version": "2.0.0",
-        "features": ["Conversación Natural", "Contexto Mantenido", "Consultas BD", "Respuestas Emocionales"],
+        "features": ["Conversación Natural", "Base de Datos Real", "Contexto Mantenido"],
         "endpoints": ["/api/test", "/api/chat", "/api/suggestions"],
         "timestamp": datetime.now().isoformat()
     })
 
 @app.route('/api/test', methods=['GET'])
 def test():
-    """Test de conexión"""
     try:
         # Test BD
-        result = execute_query("SELECT 1 as test, 'Conexión exitosa' as mensaje")
+        result = execute_query("SELECT 1 as test, 'Conexión exitosa a MySQL' as mensaje, NOW() as tiempo")
         
         if result:
             return jsonify({
                 "success": True,
                 "message": "🚀 Sistema completamente funcional",
-                "database": "✅ Conectado",
+                "database": "✅ MySQL Conectado",
                 "conversation": "✅ IA Conversacional Activa",
                 "result": result[0],
                 "timestamp": datetime.now().isoformat()
@@ -455,7 +397,7 @@ def test():
             return jsonify({
                 "success": False,
                 "message": "❌ Error de conexión a BD",
-                "database": "❌ Desconectado"
+                "database": "❌ MySQL Desconectado"
             }), 500
             
     except Exception as e:
@@ -467,7 +409,6 @@ def test():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Chat conversacional inteligente"""
     try:
         data = request.get_json()
         
@@ -520,7 +461,6 @@ def chat():
 
 @app.route('/api/suggestions', methods=['GET'])
 def suggestions():
-    """Sugerencias conversacionales por rol"""
     role = request.args.get('role', 'alumno')
     
     suggestions_map = {
@@ -559,7 +499,6 @@ def suggestions():
 
 @app.route('/api/context/<int:user_id>', methods=['GET'])
 def get_context(user_id):
-    """Ver contexto de conversación"""
     context = get_conversation_context(user_id)
     return jsonify({
         "success": True,
@@ -571,7 +510,6 @@ def get_context(user_id):
 
 @app.route('/api/context/<int:user_id>', methods=['DELETE'])
 def clear_context(user_id):
-    """Limpiar contexto de conversación"""
     if user_id in conversation_contexts:
         del conversation_contexts[user_id]
     
@@ -598,130 +536,4 @@ def server_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     logger.info(f"🚂 Iniciando IA Conversacional en puerto {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)**Estadísticas del Sistema:**\n\n"
-        for name, query in queries:
-            result = execute_query(query)
-            if result:
-                response += f"• {name}: {result[0]['total']}\n"
-        
-        return response
-    
-    else:
-        return f"🤖 Hola! Recibí tu mensaje. El sistema está funcionando correctamente. ¿En qué te puedo ayudar?"
-
-@app.route('/', methods=['GET'])
-def home():
-    """Página principal"""
-    return jsonify({
-        "status": "✅ FUNCIONANDO",
-        "message": "IA Conversacional - Railway",
-        "version": "1.0.0",
-        "endpoints": ["/api/test", "/api/chat", "/api/suggestions"],
-        "timestamp": datetime.now().isoformat()
-    })
-
-@app.route('/api/test', methods=['GET'])
-def test():
-    """Test de conexión"""
-    try:
-        # Test BD
-        result = execute_query("SELECT 1 as test, 'Conexión exitosa' as mensaje")
-        
-        if result:
-            return jsonify({
-                "success": True,
-                "message": "🚀 Sistema completamente funcional",
-                "database": "✅ Conectado",
-                "result": result[0],
-                "timestamp": datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "message": "❌ Error de conexión a BD",
-                "database": "❌ Desconectado"
-            }), 500
-            
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Error en test del sistema"
-        }), 500
-
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    """Chat principal"""
-    try:
-        data = request.get_json()
-        
-        if not data or 'message' not in data:
-            return jsonify({"error": "Mensaje requerido"}), 400
-        
-        message = data['message']
-        role = data.get('role', 'alumno')
-        user_id = data.get('user_id', 1)
-        
-        logger.info(f"Chat: {message} (role: {role})")
-        
-        # Clasificar y responder
-        intent = classify_intent(message)
-        response_text = get_response(intent, role, user_id)
-        
-        return jsonify({
-            "success": True,
-            "response": response_text,
-            "intent": intent,
-            "role": role,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error chat: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error procesando mensaje",
-            "details": str(e)
-        }), 500
-
-@app.route('/api/suggestions', methods=['GET'])
-def suggestions():
-    """Sugerencias por rol"""
-    role = request.args.get('role', 'alumno')
-    
-    suggestions_map = {
-        'alumno': [
-            "¿Cuáles son mis calificaciones?",
-            "¿Cómo van mis materias?",
-            "¿Tengo algún problema académico?"
-        ],
-        'profesor': [
-            "¿Qué alumnos están en riesgo?",
-            "¿Cuáles son mis grupos?",
-            "¿Hay reportes pendientes?"
-        ],
-        'directivo': [
-            "¿Cuáles son las estadísticas generales?",
-            "¿Cómo va el rendimiento por carrera?",
-            "¿Qué alumnos necesitan atención?"
-        ]
-    }
-    
-    return jsonify({
-        "success": True,
-        "suggestions": suggestions_map.get(role, suggestions_map['alumno']),
-        "role": role
-    })
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({"error": "Endpoint no encontrado"}), 404
-
-@app.errorhandler(500)
-def server_error(error):
-    return jsonify({"error": "Error interno del servidor"}), 500
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    logger.info(f"🚂 Iniciando servidor en puerto {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
