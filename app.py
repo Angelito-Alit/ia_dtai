@@ -898,9 +898,6 @@ def generate_intelligent_recommendations(intent, context, role):
         ]
     
     elif intent == 'estadisticas':
-        # CONTINUACIÓN FINAL DEL CÓDIGO - PARTE 3
-
-    elif intent == 'estadisticas':
         recommendations = [
             "Desarrollar dashboard en tiempo real para métricas críticas",
             "Implementar sistema de alertas automáticas por umbrales",
