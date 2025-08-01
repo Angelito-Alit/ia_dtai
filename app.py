@@ -17,14 +17,14 @@ def initialize_components():
     global db, ai
     try:
         from database.connection import DatabaseConnection
-        from models.conversation_ai import ConversationAI
+        from models.enhanced_conversation_ai import EnhancedConversationAI
         
         db = DatabaseConnection()
-        ai = ConversationAI()
-        logger.info("Components initialized successfully")
+        ai = EnhancedConversationAI()
+        logger.info("Enhanced components initialized successfully")
         return True
     except Exception as e:
-        logger.error(f"Error initializing components: {e}")
+        logger.error(f"Error initializing enhanced components: {e}")
         return False
 
 @app.route('/', methods=['GET'])
@@ -127,27 +127,33 @@ def suggestions():
     suggestions_map = {
         'alumno': [
             "Hola, como estas?",
-            "Cuales son mis calificaciones?",
-            "Como van mis materias este cuatrimestre?",
-            "Me siento preocupado por mis notas",
-            "Que puedes hacer por mi?",
-            "Gracias por tu ayuda"
+            "Cual es mi promedio general?",
+            "Que asignaturas he cursado y que calificaciones tengo?",
+            "Que reportes de riesgo he recibido?",
+            "Que materias estoy cursando actualmente?",
+            "Que solicitudes de ayuda he hecho?",
+            "En que grupo estoy asignado?",
+            "Cuales son mis datos de contacto?"
         ],
         'profesor': [
             "Buenos dias!",
-            "Que alumnos estan en riesgo?",
-            "Cuales son mis grupos asignados?",
-            "Hay reportes urgentes?",
-            "Como puedo ayudar a mis estudiantes?",
-            "Necesito estadisticas de mi clase"
+            "Que asignaturas imparto este cuatrimestre?",
+            "Que grupos tengo asignados?",
+            "Cuales son mis horarios de clase?",
+            "Que reportes de riesgo he emitido?",
+            "Que calificaciones he capturado?",
+            "Soy tutor academico de algun alumno?",
+            "Que encuestas he creado?"
         ],
         'directivo': [
             "Hola, como va todo?",
-            "Cuales son las estadisticas generales?",
-            "Como va el rendimiento por carrera?",
-            "Que alumnos necesitan atencion urgente?",
-            "Dame un resumen del sistema",
-            "Hay algo preocupante que deba saber?"
+            "Que alumnos tienen reportes abiertos?",
+            "Cuales son las solicitudes pendientes?",
+            "Que noticias estan activas?",
+            "Cuantos alumnos hay por carrera?",
+            "Que carreras estan activas?",
+            "Cuales son los posts mas vistos del foro?",
+            "Que tipos de problemas reportan mas los alumnos?"
         ]
     }
     
@@ -155,7 +161,69 @@ def suggestions():
         "success": True,
         "suggestions": suggestions_map.get(role, suggestions_map['alumno']),
         "role": role,
-        "message": f"Sugerencias conversacionales para {role}"
+        "message": f"Sugerencias de consultas especificas para {role}",
+        "note": "Puedes hacer preguntas especificas mencionando nombres de personas, materias, grupos, etc."
+    })
+
+@app.route('/api/capabilities', methods=['GET'])
+def capabilities():
+    return jsonify({
+        "success": True,
+        "message": "Capacidades del sistema de IA",
+        "categories": {
+            "alumnos": [
+                "Promedio general de un alumno especifico",
+                "Alumnos en un cuatrimestre determinado",
+                "Cantidad de alumnos por carrera",
+                "Alumnos con bajas temporales o definitivas",
+                "Grupo y aula asignados a un alumno",
+                "Datos de contacto y tutor de un alumno",
+                "Evolucion del promedio de un alumno",
+                "Asignaturas cursadas y calificaciones",
+                "Reportes de riesgo recibidos",
+                "Solicitudes de ayuda realizadas",
+                "Encuestas contestadas",
+                "Participacion en el foro",
+                "Interacciones en posts y comentarios"
+            ],
+            "profesores": [
+                "Asignaturas que imparte un profesor",
+                "Grupos asignados por cuatrimestre",
+                "Horarios de un profesor",
+                "Alumnos de grupos especificos",
+                "Reportes de riesgo emitidos",
+                "Calificaciones capturadas",
+                "Experiencia y especialidad",
+                "Funciones como tutor academico",
+                "Encuestas creadas"
+            ],
+            "directivos": [
+                "Noticias publicadas",
+                "Categorias de foro y encuestas creadas",
+                "Solicitudes de ayuda asignadas",
+                "Conversaciones de chatbot iniciadas"
+            ],
+            "sistema": [
+                "Estadisticas generales",
+                "Reportes de riesgo por tipo y nivel",
+                "Solicitudes pendientes",
+                "Noticias activas",
+                "Posts mas populares del foro",
+                "Categorias con mas contenido",
+                "Tipos de problemas mas reportados",
+                "Encuestas y sus respuestas"
+            ]
+        },
+        "usage_examples": [
+            "Cual es el promedio del alumno Juan Perez?",
+            "Que grupos tiene asignados el profesor Maria Lopez?",
+            "Que alumnos estan en riesgo critico?",
+            "Cuales son las noticias activas?",
+            "Que encuestas ha creado el profesor Rodriguez?",
+            "Cuantos alumnos hay en Ingenieria en Sistemas?",
+            "Que solicitudes de ayuda estan pendientes?"
+        ],
+        "note": "Especifica nombres completos, IDs o titulos segun sea necesario para obtener resultados precisos."
     })
 
 @app.route('/api/context/<int:user_id>', methods=['GET'])
