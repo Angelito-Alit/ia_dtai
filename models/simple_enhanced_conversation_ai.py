@@ -2,14 +2,14 @@ from datetime import datetime
 import random
 from database.connection import DatabaseConnection
 from utils.enhanced_intent_classifier import EnhancedIntentClassifier
-from models.advanced_query_generator import AdvancedQueryGenerator
+from models.fixed_query_generator import FixedQueryGenerator
 from models.response_formatter import ResponseFormatter
 
 class SimpleEnhancedConversationAI:
     def __init__(self):
         self.db = DatabaseConnection()
         self.classifier = EnhancedIntentClassifier()
-        self.query_gen = AdvancedQueryGenerator()
+        self.query_gen = FixedQueryGenerator()
         self.formatter = ResponseFormatter()
         self.contexts = {}
     
