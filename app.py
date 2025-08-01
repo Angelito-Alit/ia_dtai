@@ -17,14 +17,14 @@ def initialize_components():
     global db, ai
     try:
         from database.connection import DatabaseConnection
-        from models.enhanced_conversation_ai import EnhancedConversationAI
+        from models.simple_enhanced_conversation_ai import SimpleEnhancedConversationAI
         
         db = DatabaseConnection()
-        ai = EnhancedConversationAI()
-        logger.info("Enhanced components initialized successfully")
+        ai = SimpleEnhancedConversationAI()
+        logger.info("Simple enhanced components initialized successfully")
         return True
     except Exception as e:
-        logger.error(f"Error initializing enhanced components: {e}")
+        logger.error(f"Error initializing simple enhanced components: {e}")
         return False
 
 @app.route('/', methods=['GET'])
