@@ -8,7 +8,7 @@ class QueryGenerator:
     def __init__(self):
         self.query_patterns = {
             'estadisticas_generales': {
-                'keywords': ['estadisticas', 'general', 'resumen', 'total', 'cuantos', 'cantidad', 'datos'],
+                'keywords': ['estadisticas', 'general', 'resumen', 'total', 'cuantos', 'cantidad'],
                 'query': """
                 SELECT 
                     'Alumnos Activos' as categoria,
@@ -49,7 +49,7 @@ class QueryGenerator:
             },
             
             'alumnos_riesgo': {
-                'keywords': ['riesgo', 'problema', 'dificultad', 'critico', 'alto', 'atencion'],
+                'keywords': ['riesgo', 'problema', 'dificultad', 'critico', 'alto'],
                 'query': """
                 SELECT 
                     u.nombre,
@@ -79,7 +79,7 @@ class QueryGenerator:
             },
             
             'promedio_carreras': {
-                'keywords': ['promedio', 'carrera', 'rendimiento', 'desempeno'],
+                'keywords': ['promedio', 'carrera', 'rendimiento'],
                 'query': """
                 SELECT 
                     c.nombre as carrera,
@@ -100,7 +100,7 @@ class QueryGenerator:
             },
             
             'materias_reprobadas': {
-                'keywords': ['reprobada', 'reprobadas', 'asignatura', 'materia', 'falla', 'dificiles'],
+                'keywords': ['reprobada', 'reprobadas', 'asignatura', 'materia', 'falla'],
                 'query': """
                 SELECT 
                     a.nombre as asignatura,
@@ -121,7 +121,7 @@ class QueryGenerator:
             },
             
             'solicitudes_ayuda': {
-                'keywords': ['solicitud', 'ayuda', 'pendiente', 'atencion', 'problema'],
+                'keywords': ['solicitud', 'ayuda', 'pendiente', 'atencion'],
                 'query': """
                 SELECT 
                     sa.estado,
@@ -137,7 +137,7 @@ class QueryGenerator:
             },
             
             'calificaciones_alumno': {
-                'keywords': ['calificacion', 'nota', 'matricula', 'mis calificaciones'],
+                'keywords': ['calificacion', 'nota', 'matricula'],
                 'query': """
                 SELECT 
                     a.nombre as asignatura,
@@ -156,7 +156,7 @@ class QueryGenerator:
             },
             
             'horario_alumno': {
-                'keywords': ['horario', 'clase', 'aula', 'mi horario'],
+                'keywords': ['horario', 'clase', 'aula'],
                 'query': """
                 SELECT 
                     a.nombre as asignatura,
@@ -179,7 +179,7 @@ class QueryGenerator:
             },
             
             'grupos': {
-                'keywords': ['grupo', 'grupos', 'cuales grupos', 'que grupos'],
+                'keywords': ['grupo', 'grupos'],
                 'query': """
                 SELECT 
                     g.nombre as grupo,
@@ -207,7 +207,7 @@ class QueryGenerator:
         
         matricula_match = re.search(r'\b\d{8,12}\b', message)
         
-        if any(k in message_lower for k in ['calificacion', 'nota', 'mis calificaciones']):
+        if intent in ['calificaciones', 'calificacion'] or any(k in message_lower for k in ['calificacion', 'nota']):
             if matricula_match:
                 return self.query_patterns['calificaciones_alumno']['query'], [matricula_match.group()]
             elif role == 'alumno' and user_id:
@@ -228,7 +228,7 @@ class QueryGenerator:
                 """
                 return query, [user_id]
         
-        if any(k in message_lower for k in ['horario', 'clase', 'aula', 'mi horario']):
+        if intent in ['horario', 'horarios'] or any(k in message_lower for k in ['horario', 'clase', 'aula']):
             if matricula_match:
                 return self.query_patterns['horario_alumno']['query'], [matricula_match.group()]
             elif role == 'alumno' and user_id:
@@ -265,6 +265,6 @@ class QueryGenerator:
         if role == 'alumno':
             return [q for q in base_queries if q not in ['alumnos_riesgo']]
         elif role == 'profesor':
-            return base_queries
+            return base_queries + ['mis_grupos', 'mis_alumnos']
         else:
             return base_queries

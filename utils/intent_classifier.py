@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class IntentClassifier:
                 'priority': 9
             },
             'pregunta_identidad': {
-                'keywords': ['quien eres', 'que eres', 'who are you', 'que puedes hacer'],
+                'keywords': ['quien eres', 'que eres', 'who are you', 'que puedes hacer', 'como funcionas'],
                 'priority': 9
             },
             'estadisticas_generales': {
@@ -32,7 +32,7 @@ class IntentClassifier:
                 'priority': 8
             },
             'alumnos_riesgo': {
-                'keywords': ['riesgo', 'problema', 'dificultad', 'critico', 'alto riesgo', 'atencion'],
+                'keywords': ['riesgo', 'problema', 'dificultad', 'critico', 'alto riesgo', 'alumnos problemas'],
                 'priority': 8
             },
             'promedio_carreras': {
@@ -40,7 +40,7 @@ class IntentClassifier:
                 'priority': 8
             },
             'materias_reprobadas': {
-                'keywords': ['reprobada', 'reprobadas', 'materias reprobadas', 'asignaturas reprobadas'],
+                'keywords': ['reprobada', 'reprobadas', 'materias reprobadas', 'asignaturas reprobadas', 'fallas'],
                 'priority': 8
             },
             'solicitudes_ayuda': {
@@ -48,7 +48,7 @@ class IntentClassifier:
                 'priority': 8
             },
             'calificaciones': {
-                'keywords': ['calificacion', 'calificaciones', 'notas', 'puntuaciones', 'mis notas'],
+                'keywords': ['calificacion', 'calificaciones', 'notas', 'puntuaciones', 'resultados', 'mis notas'],
                 'priority': 7
             },
             'horarios': {
@@ -59,14 +59,36 @@ class IntentClassifier:
                 'keywords': ['grupo', 'grupos', 'que grupos', 'cuales grupos'],
                 'priority': 7
             },
+            'profesores': {
+                'keywords': ['profesor', 'profesores', 'maestro', 'maestros', 'docente'],
+                'priority': 6
+            },
+            'asignaturas': {
+                'keywords': ['asignatura', 'asignaturas', 'materia', 'materias', 'curso'],
+                'priority': 6
+            },
+            'emocional_negativo': {
+                'keywords': ['triste', 'deprimido', 'mal', 'terrible', 'horrible', 'preocupado', 'ansioso'],
+                'priority': 5
+            },
+            'emocional_positivo': {
+                'keywords': ['feliz', 'contento', 'bien', 'genial', 'excelente', 'perfecto'],
+                'priority': 5
+            },
             'afirmacion': {
-                'keywords': ['si', 'claro', 'ok', 'esta bien', 'perfecto'],
+                'keywords': ['si', 'claro', 'ok', 'esta bien', 'perfecto', 'correcto'],
                 'priority': 4
             },
             'negacion': {
                 'keywords': ['no', 'nada', 'mejor no', 'no gracias'],
                 'priority': 4
             }
+        }
+        
+        self.context_patterns = {
+            'continuation': ['mas', 'otro', 'tambien', 'ademas', 'siguiente'],
+            'clarification': ['que significa', 'no entiendo', 'explica', 'como'],
+            'specific_request': ['dame', 'muestrame', 'necesito', 'quiero ver']
         }
     
     def classify_intent(self, message: str, context: Optional[Dict[str, Any]] = None) -> str:
@@ -87,6 +109,11 @@ class IntentClassifier:
             if score > highest_score:
                 highest_score = score
                 best_intent = intent
+        
+        if context and context.get('last_intent'):
+            context_intent = self._check_context_continuation(message_lower, context)
+            if context_intent:
+                return context_intent
         
         if highest_score < 0.3:
             return 'conversacion_general'
@@ -126,6 +153,30 @@ class IntentClassifier:
         
         final_score = (keyword_score * priority_multiplier) + length_bonus
         return min(final_score, 1.0)
+    
+    def _check_context_continuation(self, message: str, context: Dict[str, Any]) -> Optional[str]:
+        last_intent = context.get('last_intent')
+        
+        if any(word in message for word in self.context_patterns['continuation']):
+            if last_intent and last_intent != 'conversacion_general':
+                return f"mas_{last_intent}"
+        
+        if any(word in message for word in ['si', 'claro', 'ok']):
+            return 'afirmacion'
+        
+        if any(word in message for word in ['no', 'nada']):
+            return 'negacion'
+        
+        return None
+    
+    def get_intent_confidence(self, message: str, intent: str) -> float:
+        if intent not in self.intent_patterns:
+            return 0.0
+        
+        message_lower = self._clean_message(message).lower()
+        pattern_data = self.intent_patterns[intent]
+        
+        return self._calculate_intent_score(message_lower, pattern_data)
     
     def suggest_intents(self, message: str, top_n: int = 3) -> List[Dict[str, Any]]:
         message_lower = self._clean_message(message).lower()

@@ -7,3 +7,4 @@ __all__ = [
     'QueryGenerator', 
     'ResponseFormatter'
 ]
+__version__ = '1.0.0'

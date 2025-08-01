@@ -55,4 +55,4 @@ class DatabaseConnection:
             result = self.execute_query("SELECT 1 as test, NOW() as tiempo")
             return result is not None
         except:
-            return False
+            return False    

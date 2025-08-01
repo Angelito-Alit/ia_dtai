@@ -254,7 +254,29 @@ def analyze_query():
             "error": str(e)
         }), 500
 
-@app.errorhandler(404)
+@app.errorhandler(403)
+def forbidden(error):
+    return jsonify({
+        "error": "Acceso denegado",
+        "message": "No tienes permisos para realizar esta acción"
+    }), 403
+
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({
+        "error": "Solicitud incorrecta",
+        "message": "Revisa los parámetros enviados"
+    }), 400
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    logger.info(f"Iniciando IA Conversacional Educativa en puerto {port}")
+    logger.info(f"Modo debug: {debug_mode}")
+    logger.info("Componentes del sistema cargados correctamente")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)handler(404)
 def not_found(error):
     return jsonify({
         "error": "Endpoint no encontrado",
@@ -278,26 +300,4 @@ def server_error(error):
         "message": "Algo salió mal en el procesamiento"
     }), 500
 
-@app.errorhandler(403)
-def forbidden(error):
-    return jsonify({
-        "error": "Acceso denegado",
-        "message": "No tienes permisos para realizar esta acción"
-    }), 403
-
-@app.errorhandler(400)
-def bad_request(error):
-    return jsonify({
-        "error": "Solicitud incorrecta",
-        "message": "Revisa los parámetros enviados"
-    }), 400
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    logger.info(f"Iniciando IA Conversacional Educativa en puerto {port}")
-    logger.info(f"Modo debug: {debug_mode}")
-    logger.info("Componentes del sistema cargados correctamente")
-    
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+@app.error
