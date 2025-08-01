@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ class IntentClassifier:
         
         return self._calculate_intent_score(message_lower, pattern_data)
     
-    def suggest_intents(self, message: str, top_n: int = 3) -> List[Dict[str, Any]]:
+    def suggest_intents(self, message: str, top_n: int = 3) -> list:
         message_lower = self._clean_message(message).lower()
         intent_scores = []
         

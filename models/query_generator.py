@@ -202,7 +202,7 @@ class QueryGenerator:
             }
         }
     
-    def generate_query(self, message: str, intent: str, user_id: Optional[int] = None, role: str = 'alumno') -> Tuple[str, List]:
+    def generate_query(self, message: str, intent: str, user_id: Optional[int] = None, role: str = 'alumno') -> Tuple[Optional[str], list]:
         message_lower = message.lower()
         
         matricula_match = re.search(r'\b\d{8,12}\b', message)
@@ -259,7 +259,7 @@ class QueryGenerator:
         
         return None, []
     
-    def get_available_queries(self, role: str) -> List[str]:
+    def get_available_queries(self, role: str) -> list:
         base_queries = list(self.query_patterns.keys())
         
         if role == 'alumno':

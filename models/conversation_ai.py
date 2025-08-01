@@ -133,7 +133,7 @@ class ConversationAI:
         ]
         return intent in conversational_intents
     
-    def get_available_commands(self, role: str) -> Dict[str, List[str]]:
+    def get_available_commands(self, role: str) -> Dict[str, Any]:
         commands = {
             'alumno': [
                 "¿Cuáles son mis calificaciones?",

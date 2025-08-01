@@ -27,7 +27,7 @@ class DatabaseConnection:
             logger.error(f"Error BD: {e}")
             return None
     
-    def execute_query(self, query: str, params: Optional[List] = None) -> Optional[List[Dict[str, Any]]]:
+    def execute_query(self, query: str, params: Optional[list] = None) -> Optional[List[Dict[str, Any]]]:
         connection = self.connect()
         if not connection:
             return None
@@ -46,7 +46,7 @@ class DatabaseConnection:
                 connection.close()
             return None
     
-    def execute_single_query(self, query: str, params: Optional[List] = None) -> Optional[Dict[str, Any]]:
+    def execute_single_query(self, query: str, params: Optional[list] = None) -> Optional[Dict[str, Any]]:
         result = self.execute_query(query, params)
         return result[0] if result else None
     
@@ -55,4 +55,4 @@ class DatabaseConnection:
             result = self.execute_query("SELECT 1 as test, NOW() as tiempo")
             return result is not None
         except:
-            return False    
+            return False
