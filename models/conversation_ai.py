@@ -1,181 +1,239 @@
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
-import random
-from database.connection import DatabaseConnection
+import logging
+
 from utils.intent_classifier import IntentClassifier
 from models.query_generator import QueryGenerator
 from models.response_formatter import ResponseFormatter
+from database.connection import DatabaseConnection
+
+logger = logging.getLogger(__name__)
 
 class ConversationAI:
     def __init__(self):
+        self.intent_classifier = IntentClassifier()
+        self.query_generator = QueryGenerator()
+        self.response_formatter = ResponseFormatter()
         self.db = DatabaseConnection()
-        self.classifier = IntentClassifier()
-        self.query_gen = QueryGenerator()
-        self.formatter = ResponseFormatter()
-        self.contexts = {}
+        self.conversation_contexts = {}
     
-    def get_user_context(self, user_id):
-        if user_id not in self.contexts:
-            self.contexts[user_id] = {
-                'messages': [],
-                'last_intent': None
+    def process_message(self, message: str, user_id: int = 1, role: str = 'alumno') -> Dict[str, Any]:
+        try:
+            if not message or not message.strip():
+                return {
+                    "success": True,
+                    "response": "Parece que no escribiste nada. ¿En qué te puedo ayudar?",
+                    "intent": "mensaje_vacio",
+                    "has_data": False
+                }
+            
+            context = self.get_conversation_context(user_id)
+            intent = self.intent_classifier.classify_intent(message, context)
+            
+            logger.info(f"Usuario {user_id} ({role}): {message[:50]}... -> Intent: {intent}")
+            
+            if self._is_conversational_intent(intent):
+                response = self.response_formatter.format_response(intent, None, message, role)
+                self.update_context(user_id, message, intent, response)
+                
+                return {
+                    "success": True,
+                    "response": response,
+                    "intent": intent,
+                    "has_data": False,
+                    "conversational": True
+                }
+            
+            query, params = self.query_generator.generate_query(message, intent, user_id, role)
+            
+            if not query:
+                response = f"No pude generar la consulta para tu pregunta. Intenta reformularla."
+                self.update_context(user_id, message, 'consulta_fallida', response)
+                
+                return {
+                    "success": False,
+                    "response": response,
+                    "intent": "consulta_fallida",
+                    "has_data": False
+                }
+            
+            data = self.db.execute_query(query, params)
+            response = self.response_formatter.format_response(intent, data, message, role)
+            response = self.response_formatter.add_suggestions(response, intent, role)
+            
+            self.update_context(user_id, message, intent, response)
+            
+            return {
+                "success": True,
+                "response": response,
+                "intent": intent,
+                "has_data": bool(data),
+                "data_count": len(data) if data else 0,
+                "query_executed": True
             }
-        return self.contexts[user_id]
+            
+        except Exception as e:
+            logger.error(f"Error procesando mensaje: {e}")
+            error_response = "Lo siento, tuve un problema procesando tu mensaje. ¿Puedes intentar de nuevo?"
+            
+            return {
+                "success": False,
+                "response": error_response,
+                "intent": "error_sistema",
+                "error": str(e),
+                "has_data": False
+            }
     
-    def update_context(self, user_id, message, intent, response):
-        context = self.get_user_context(user_id)
+    def get_conversation_context(self, user_id: int) -> Dict[str, Any]:
+        if user_id not in self.conversation_contexts:
+            self.conversation_contexts[user_id] = {
+                'messages': [],
+                'last_intent': None,
+                'session_start': datetime.now()
+            }
+        return self.conversation_contexts[user_id]
+    
+    def update_context(self, user_id: int, message: str, intent: str, response: str):
+        context = self.get_conversation_context(user_id)
+        
         context['messages'].append({
-            'user': message,
-            'bot': response[:100],
+            'user_message': message[:100],
+            'bot_response': response[:100],
             'intent': intent,
-            'time': datetime.now()
+            'timestamp': datetime.now()
         })
+        
         context['last_intent'] = intent
         
         if len(context['messages']) > 5:
             context['messages'] = context['messages'][-5:]
     
-    def clear_user_context(self, user_id):
-        if user_id in self.contexts:
-            del self.contexts[user_id]
+    def clear_context(self, user_id: int) -> bool:
+        if user_id in self.conversation_contexts:
+            del self.conversation_contexts[user_id]
+            return True
+        return False
     
-    def process_message(self, message, role='alumno', user_id=1):
-        context = self.get_user_context(user_id)
-        intent = self.classifier.classify(message, context)
-        
-        if intent in ['saludo', 'despedida', 'agradecimiento', 'pregunta_estado', 'pregunta_identidad', 'emocional_positivo', 'emocional_negativo']:
-            response = self._get_conversational_response(intent, message)
-        else:
-            response = self._get_data_response(intent, message, role, user_id)
-        
-        self.update_context(user_id, message, intent, response)
+    def get_context_summary(self, user_id: int) -> Dict[str, Any]:
+        context = self.get_conversation_context(user_id)
         
         return {
-            'response': response,
-            'intent': intent,
-            'conversational': True,
-            'context_messages': len(context['messages']),
-            'role': role
+            "user_id": user_id,
+            "messages_count": len(context['messages']),
+            "last_intent": context['last_intent'],
+            "session_duration_minutes": (datetime.now() - context['session_start']).total_seconds() / 60,
+            "recent_intents": [msg['intent'] for msg in context['messages'][-3:]]
         }
     
-    def _get_conversational_response(self, intent, message):
-        responses = {
-            'saludo': [
-                "Hola! Como estas? Soy tu asistente virtual academico.",
-                "Buenos dias! En que te puedo ayudar hoy?",
-                "Hola! Me alegra verte por aqui. Que necesitas saber?",
-                "Hey! Como van las cosas? En que te puedo asistir?"
+    def _is_conversational_intent(self, intent: str) -> bool:
+        conversational_intents = [
+            'saludo', 'despedida', 'agradecimiento', 'pregunta_estado', 
+            'pregunta_identidad', 'emocional_negativo', 'emocional_positivo',
+            'afirmacion', 'negacion', 'conversacion_general'
+        ]
+        return intent in conversational_intents
+    
+    def get_available_commands(self, role: str) -> Dict[str, List[str]]:
+        commands = {
+            'alumno': [
+                "¿Cuáles son mis calificaciones?",
+                "¿Cuál es mi horario?",
+                "¿Cómo van mis materias?",
+                "¿Cuál es mi promedio?",
+                "Hola, ¿cómo estás?"
             ],
-            'pregunta_estado': [
-                "Muy bien, gracias por preguntar! Estoy aqui para ayudarte con tus consultas academicas.",
-                "Excelente! Funcionando al 100% y listo para ayudarte. Que necesitas?",
-                "Perfecto! Siempre contento de poder ayudar a estudiantes como tu. En que te apoyo?"
+            'profesor': [
+                "¿Qué alumnos están en riesgo?",
+                "¿Cuáles son las estadísticas generales?",
+                "¿Qué grupos hay activos?",
+                "¿Cuáles son las materias más reprobadas?",
+                "¿Cuántas solicitudes de ayuda hay?"
             ],
-            'pregunta_identidad': [
-                "Soy tu asistente virtual academico. Puedo ayudarte con calificaciones, reportes de riesgo, estadisticas y mas. Preguntame lo que necesites!",
-                "Hola! Soy una IA especializada en educacion. Mi trabajo es ayudarte con tus consultas academicas y darte recomendaciones personalizadas.",
-                "Soy tu companero digital para todo lo academico. Consulto la base de datos en tiempo real para darte informacion actualizada."
-            ],
-            'emocional_negativo': [
-                "Lo siento mucho que te sientas asi. Recuerda que los desafios academicos son temporales y siempre hay oportunidades de mejorar. Te gustaria que revisemos tu situacion academica juntos?",
-                "Entiendo que puede ser frustrante. Estoy aqui para apoyarte. Hay algo especifico que te preocupa? Podemos buscar soluciones juntos.",
-                "Se que a veces puede ser abrumador. Pero recuerda que cada dificultad es una oportunidad de crecimiento. En que area necesitas mas apoyo?"
-            ],
-            'emocional_positivo': [
-                "Me alegra mucho escuchar eso! Sigue asi! Hay algo en lo que pueda ayudarte para mantener ese buen animo?",
-                "Que bueno! La actitud positiva es clave para el exito academico. Quieres revisar como van tus materias?",
-                "Excelente! Me encanta ver estudiantes motivados. En que mas puedo apoyarte?"
-            ],
-            'agradecimiento': [
-                "De nada! Para eso estoy aqui. Necesitas algo mas?",
-                "Un placer ayudarte! Cualquier otra cosa que necesites, solo pregunta.",
-                "Siempre es un gusto! Hay algo mas en lo que te pueda asistir?"
-            ],
-            'despedida': [
-                "Hasta luego! Que tengas un excelente dia. Aqui estare cuando me necesites.",
-                "Nos vemos! Que te vaya super bien en tus estudios!",
-                "Adios! Recuerda que siempre puedes contar conmigo para tus consultas academicas."
+            'directivo': [
+                "¿Cuáles son las estadísticas generales?",
+                "¿Qué alumnos están en riesgo?",
+                "¿Cómo va el rendimiento por carreras?",
+                "¿Qué materias tienen más reprobación?",
+                "¿Cuántos grupos hay activos?",
+                "¿Cuántas solicitudes pendientes hay?"
             ]
         }
         
-        return random.choice(responses.get(intent, ["Entiendo lo que me dices. En que mas puedo ayudarte?"]))
+        return {
+            "commands": commands.get(role, commands['alumno']),
+            "role": role,
+            "total_commands": len(commands.get(role, []))
+        }
     
-    def _get_data_response(self, intent, message, role, user_id):
-        if intent == 'calificaciones':
-            return self._get_calificaciones_response(user_id)
-        elif intent == 'riesgo':
-            return self._get_riesgo_response()
-        elif intent == 'promedio':
-            return self._get_promedio_response()
-        elif intent == 'estadisticas':
-            return self._get_estadisticas_response()
-        else:
-            return f"Interesante lo que me dices: '{message}'. Como tu asistente academico, hay algo relacionado con tus estudios en lo que te pueda ayudar?"
-    
-    def _get_calificaciones_response(self, user_id):
-        query = """
-        SELECT a.nombre, c.calificacion_final, c.estatus, c.parcial_1, c.parcial_2, c.parcial_3
-        FROM calificaciones c
-        JOIN asignaturas a ON c.asignatura_id = a.id
-        JOIN alumnos al ON c.alumno_id = al.id
-        WHERE al.usuario_id = %s
-        ORDER BY a.nombre
-        LIMIT 10
-        """
-        data = self.db.execute_query(query, [user_id])
+    def analyze_query_complexity(self, message: str) -> Dict[str, Any]:
+        complexity_indicators = {
+            'simple': ['que', 'cual', 'cuanto', 'quien'],
+            'medium': ['como', 'donde', 'cuando', 'por que'],
+            'complex': ['analizar', 'comparar', 'evaluar', 'generar reporte']
+        }
         
-        if data:
-            return self.formatter.format_calificaciones(data)
-        else:
-            return "No encontre calificaciones registradas para ti. Es tu primer cuatrimestre? Si crees que es un error, puedes contactar a tu coordinador academico."
-    
-    def _get_riesgo_response(self):
-        query = """
-        SELECT u.nombre, u.apellido, al.matricula, rr.nivel_riesgo, rr.tipo_riesgo, rr.descripcion, car.nombre as carrera
-        FROM reportes_riesgo rr
-        JOIN alumnos al ON rr.alumno_id = al.id
-        JOIN usuarios u ON al.usuario_id = u.id
-        JOIN carreras car ON al.carrera_id = car.id
-        WHERE rr.estado IN ('abierto', 'en_proceso')
-        ORDER BY CASE rr.nivel_riesgo 
-            WHEN 'critico' THEN 1 
-            WHEN 'alto' THEN 2 
-            WHEN 'medio' THEN 3 
-            ELSE 4 END
-        LIMIT 10
-        """
-        data = self.db.execute_query(query)
+        message_lower = message.lower()
+        complexity = 'simple'
+        indicators_found = []
         
-        if data:
-            return self.formatter.format_riesgo(data)
-        else:
-            return "Excelente noticia! No hay alumnos en situacion de riesgo actualmente. El sistema educativo esta funcionando bien."
-    
-    def _get_promedio_response(self):
-        query = """
-        SELECT c.nombre as carrera, 
-               COUNT(al.id) as total_alumnos,
-               ROUND(AVG(al.promedio_general), 2) as promedio_carrera,
-               COUNT(CASE WHEN al.promedio_general < 7.0 THEN 1 END) as alumnos_riesgo
-        FROM carreras c
-        LEFT JOIN alumnos al ON c.id = al.carrera_id
-        WHERE al.estado_alumno = 'activo'
-        GROUP BY c.id, c.nombre
-        ORDER BY promedio_carrera DESC
-        LIMIT 10
-        """
-        data = self.db.execute_query(query)
+        for level, indicators in complexity_indicators.items():
+            found = [ind for ind in indicators if ind in message_lower]
+            if found:
+                complexity = level
+                indicators_found.extend(found)
         
-        if data:
-            return self.formatter.format_promedio(data)
-        else:
-            return "No se encontraron datos de promedios por carrera."
+        return {
+            "complexity": complexity,
+            "indicators": indicators_found,
+            "estimated_processing_time": {
+                'simple': '< 1 segundo',
+                'medium': '1-3 segundos', 
+                'complex': '3-10 segundos'
+            }.get(complexity, '< 1 segundo')
+        }
     
-    def _get_estadisticas_response(self):
-        queries = [
-            ("Total Alumnos Activos", "SELECT COUNT(*) as total FROM alumnos WHERE estado_alumno = 'activo'"),
-            ("Total Carreras", "SELECT COUNT(*) as total FROM carreras WHERE activa = 1"),
-            ("Reportes Abiertos", "SELECT COUNT(*) as total FROM reportes_riesgo WHERE estado IN ('abierto', 'en_proceso')"),
-            ("Solicitudes Pendientes", "SELECT COUNT(*) as total FROM solicitudes_ayuda WHERE estado IN ('pendiente', 'en_atencion')")
-        ]
+    def validate_user_permissions(self, role: str, intent: str) -> Tuple[bool, str]:
+        role_permissions = {
+            'alumno': [
+                'calificaciones', 'horarios', 'conversacion_general',
+                'saludo', 'despedida', 'agradecimiento'
+            ],
+            'profesor': [
+                'alumnos_riesgo', 'grupos', 'estadisticas_generales',
+                'materias_reprobadas', 'calificaciones', 'horarios'
+            ],
+            'directivo': [
+                'estadisticas_generales', 'alumnos_riesgo', 'promedio_carreras',
+                'materias_reprobadas', 'solicitudes_ayuda', 'grupos'
+            ]
+        }
         
-        return self.formatter.format_estadisticas(queries, self.db)
+        allowed_intents = role_permissions.get(role, role_permissions['alumno'])
+        
+        if intent in allowed_intents or intent.startswith('conversacion') or intent.startswith('emocional'):
+            return True, "Acceso permitido"
+        
+        return False, f"No tienes permisos para realizar consultas de tipo '{intent}'"
+    
+    def get_system_status(self) -> Dict[str, Any]:
+        try:
+            db_status = self.db.test_connection()
+            active_contexts = len(self.conversation_contexts)
+            
+            return {
+                "system_status": "online",
+                "database_connection": "connected" if db_status else "disconnected",
+                "active_conversations": active_contexts,
+                "ai_components": {
+                    "intent_classifier": "ready",
+                    "query_generator": "ready", 
+                    "response_formatter": "ready"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                "system_status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }

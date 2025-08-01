@@ -1,35 +1,225 @@
+import random
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
 class ResponseFormatter:
     def __init__(self):
-        pass
+        self.conversational_responses = {
+            'saludo': [
+                "Hola! Soy tu asistente virtual académico. ¿En qué te puedo ayudar hoy?",
+                "Buenos días! ¿Qué necesitas saber?",
+                "Hola! Me alegra verte por aquí. ¿Qué consulta tienes?",
+                "Hey! ¿Cómo van las cosas? ¿En qué te puedo asistir?"
+            ],
+            'despedida': [
+                "Hasta luego! Que tengas un excelente día.",
+                "Nos vemos! Que te vaya súper bien en tus estudios!",
+                "Adiós! Recuerda que siempre puedes contar conmigo.",
+                "Hasta pronto! Aquí estaré cuando me necesites."
+            ],
+            'agradecimiento': [
+                "De nada! Para eso estoy aquí. ¿Necesitas algo más?",
+                "Un placer ayudarte! Cualquier otra cosa que necesites, solo pregunta.",
+                "Siempre es un gusto! ¿Hay algo más en lo que te pueda asistir?"
+            ],
+            'pregunta_estado': [
+                "Muy bien, gracias por preguntar! Estoy aquí para ayudarte con tus consultas académicas.",
+                "Excelente! Funcionando al 100% y listo para ayudarte. ¿Qué necesitas?",
+                "Perfecto! Siempre contento de poder ayudar a estudiantes como tú."
+            ],
+            'pregunta_identidad': [
+                "Soy tu asistente virtual académico. Puedo ayudarte con calificaciones, reportes de riesgo, estadísticas y más.",
+                "Hola! Soy una IA especializada en educación. Mi trabajo es ayudarte con tus consultas académicas.",
+                "Soy tu compañero digital para todo lo académico. Consulto la base de datos en tiempo real."
+            ],
+            'emocional_negativo': [
+                "Lo siento que te sientas así. Los desafíos académicos son temporales y siempre hay oportunidades de mejorar.",
+                "Entiendo que puede ser frustrante. Estoy aquí para apoyarte. ¿Hay algo específico que te preocupa?",
+                "Sé que a veces puede ser abrumador. Recuerda que cada dificultad es una oportunidad de crecimiento."
+            ],
+            'emocional_positivo': [
+                "Me alegra mucho escuchar eso! Sigue así! ¿Hay algo en lo que pueda ayudarte?",
+                "Qué bueno! La actitud positiva es clave para el éxito académico.",
+                "Excelente! Me encanta ver estudiantes motivados."
+            ],
+            'afirmacion': [
+                "Perfecto! ¿En qué más te puedo ayudar?",
+                "Genial! ¿Hay algo más que quieras saber?",
+                "Excelente! ¿Qué más necesitas?"
+            ],
+            'negacion': [
+                "Entiendo. Si cambias de opinión o necesitas algo más, aquí estaré.",
+                "Sin problema. ¿Hay algo diferente en lo que te pueda ayudar?",
+                "Está bien. Cualquier otra consulta que tengas, solo dímelo."
+            ]
+        }
     
-    def format_calificaciones(self, data):
-        response = "**Aqui tienes tus calificaciones:**\n\n"
+    def format_response(self, intent: str, data: Optional[List[Dict[str, Any]]], message: str = "", role: str = "alumno") -> str:
+        if intent in self.conversational_responses:
+            return random.choice(self.conversational_responses[intent])
+        
+        if not data:
+            return self._format_no_data_response(intent)
+        
+        if intent in ['estadisticas', 'estadisticas_generales']:
+            return self._format_statistics(data)
+        elif intent in ['riesgo', 'alumnos_riesgo']:
+            return self._format_risk_students(data)
+        elif intent in ['promedio', 'promedio_carreras']:
+            return self._format_career_averages(data)
+        elif intent in ['reprobadas', 'materias_reprobadas']:
+            return self._format_failed_subjects(data)
+        elif intent in ['solicitudes', 'solicitudes_ayuda']:
+            return self._format_help_requests(data)
+        elif intent in ['calificaciones', 'calificacion']:
+            return self._format_grades(data)
+        elif intent in ['horarios', 'horario']:
+            return self._format_schedule(data)
+        elif intent in ['grupos']:
+            return self._format_groups(data)
+        else:
+            return self._format_generic_data(data, intent)
+    
+    def _format_statistics(self, data: List[Dict[str, Any]]) -> str:
+        response = "Estadísticas Generales del Sistema:\n\n"
+        
+        for item in data:
+            categoria = item.get('categoria', 'Sin categoría')
+            total = item.get('total', 0)
+            response += f"• {categoria}: {total}\n"
+        
+        response += "\n¿Te gustaría un análisis más detallado de algún área específica?"
+        return response
+    
+    def _format_risk_students(self, data: List[Dict[str, Any]]) -> str:
+        if not data:
+            return "Excelente noticia! No hay alumnos en situación de riesgo actualmente."
+        
+        criticos = len([d for d in data if d.get('nivel_riesgo') == 'critico'])
+        response = f"Alumnos que necesitan atención ({len(data)} casos activos):\n\n"
+        
+        for student in data:
+            emoji = "🔴" if student.get('nivel_riesgo') == 'critico' else "🟡" if student.get('nivel_riesgo') == 'alto' else "🟠"
+            nombre = f"{student.get('nombre', '')} {student.get('apellido', '')}"
+            matricula = student.get('matricula', '')
+            carrera = student.get('carrera', '')
+            nivel = student.get('nivel_riesgo', '')
+            tipo = student.get('tipo_riesgo', '')
+            
+            response += f"{emoji} {nombre} ({matricula})\n"
+            response += f"   Carrera: {carrera}\n"
+            response += f"   Riesgo: {nivel} ({tipo})\n\n"
+        
+        if criticos > 0:
+            response += f"ATENCIÓN URGENTE: {criticos} estudiantes en riesgo crítico requieren intervención inmediata.\n"
+        
+        return response
+    
+    def _format_career_averages(self, data: List[Dict[str, Any]]) -> str:
+        response = "Rendimiento por Carrera:\n\n"
+        
+        for career in data:
+            carrera = career.get('carrera', 'Sin nombre')
+            total_alumnos = career.get('total_alumnos', 0)
+            promedio = career.get('promedio_carrera', 0)
+            alumnos_riesgo = career.get('alumnos_riesgo', 0)
+            porcentaje_riesgo = career.get('porcentaje_riesgo', 0)
+            
+            emoji = "🟢" if porcentaje_riesgo < 10 else "🟡" if porcentaje_riesgo < 25 else "🔴"
+            
+            response += f"{emoji} {carrera}\n"
+            response += f"   Alumnos: {total_alumnos}\n"
+            response += f"   Promedio: {promedio}\n"
+            response += f"   En riesgo: {alumnos_riesgo} ({porcentaje_riesgo}%)\n\n"
+        
+        response += "¿Te gustaría ver un análisis más detallado de alguna carrera específica?"
+        return response
+    
+    def _format_failed_subjects(self, data: List[Dict[str, Any]]) -> str:
+        response = "Materias con Mayor Índice de Reprobación:\n\n"
+        
+        for subject in data:
+            asignatura = subject.get('asignatura', 'Sin nombre')
+            total_reprobados = subject.get('total_reprobados', 0)
+            porcentaje = subject.get('porcentaje_reprobacion', 0)
+            
+            response += f"• {asignatura}\n"
+            response += f"   Reprobados: {total_reprobados} ({porcentaje}%)\n\n"
+        
+        response += "¿Te gustaría estrategias para mejorar el rendimiento en alguna materia?"
+        return response
+    
+    def _format_help_requests(self, data: List[Dict[str, Any]]) -> str:
+        response = "Estado de Solicitudes de Ayuda:\n\n"
+        
+        estados = {}
+        tipos = {}
+        
+        for request in data:
+            estado = request.get('estado', 'Sin estado')
+            tipo = request.get('tipo_problema', 'Sin tipo')
+            cantidad = request.get('cantidad', 0)
+            
+            if estado not in estados:
+                estados[estado] = 0
+            estados[estado] += cantidad
+            
+            if tipo not in tipos:
+                tipos[tipo] = 0
+            tipos[tipo] += cantidad
+        
+        response += "Por Estado:\n"
+        for estado, cantidad in estados.items():
+            response += f"• {estado}: {cantidad}\n"
+        
+        response += "\nPor Tipo de Problema:\n"
+        for tipo, cantidad in tipos.items():
+            response += f"• {tipo}: {cantidad}\n"
+        
+        return response
+    
+    def _format_grades(self, data: List[Dict[str, Any]]) -> str:
+        if not data:
+            return "No se encontraron calificaciones registradas."
+        
+        response = "Tus Calificaciones:\n\n"
         total_promedio = 0
         materias_count = 0
         materias_riesgo = 0
         
-        for row in data:
-            if row['calificacion_final']:
-                total_promedio += row['calificacion_final']
+        for grade in data:
+            asignatura = grade.get('asignatura', 'Sin nombre')
+            calificacion_final = grade.get('calificacion_final')
+            estatus = grade.get('estatus', 'Sin estatus')
+            parcial_1 = grade.get('parcial_1')
+            parcial_2 = grade.get('parcial_2')
+            parcial_3 = grade.get('parcial_3')
+            
+            if calificacion_final:
+                total_promedio += calificacion_final
                 materias_count += 1
-                if row['calificacion_final'] < 7.0:
+                if calificacion_final < 7.0:
                     materias_riesgo += 1
             
-            status = "✅" if row['estatus'] == 'aprobado' else "📝" if row['estatus'] == 'cursando' else "❌"
-            grade = f"{row['calificacion_final']:.1f}" if row['calificacion_final'] else 'Sin calificar'
-            response += f"{status} **{row['nombre']}**: {grade}\n"
+            status_emoji = "✅" if estatus == 'aprobado' else "📝" if estatus == 'cursando' else "❌"
+            grade_text = f"{calificacion_final:.1f}" if calificacion_final else 'Sin calificar'
             
-            if row['parcial_1'] or row['parcial_2'] or row['parcial_3']:
+            response += f"{status_emoji} {asignatura}: {grade_text}\n"
+            
+            if parcial_1 or parcial_2 or parcial_3:
                 parciales = []
-                if row['parcial_1']: parciales.append(f"P1: {row['parcial_1']:.1f}")
-                if row['parcial_2']: parciales.append(f"P2: {row['parcial_2']:.1f}")
-                if row['parcial_3']: parciales.append(f"P3: {row['parcial_3']:.1f}")
-                response += f"   {' | '.join(parciales)}\n"
+                if parcial_1: parciales.append(f"P1: {parcial_1:.1f}")
+                if parcial_2: parciales.append(f"P2: {parcial_2:.1f}")
+                if parcial_3: parciales.append(f"P3: {parcial_3:.1f}")
+                response += f"   📝 {' | '.join(parciales)}\n"
             response += "\n"
         
         if materias_count > 0:
             promedio_actual = total_promedio / materias_count
-            response += f"**Tu promedio actual**: {promedio_actual:.2f}\n\n"
+            response += f"Tu promedio actual: {promedio_actual:.2f}\n\n"
             
             if promedio_actual >= 9.0:
                 response += "Excelente trabajo! Sigues por muy buen camino."
@@ -38,84 +228,105 @@ class ResponseFormatter:
             elif promedio_actual >= 7.0:
                 response += "Vas bien, pero hay espacio para mejorar."
             else:
-                response += "Necesitas enfocarte mas en tus estudios."
+                response += "Necesitas enfocarte más en tus estudios."
             
             if materias_riesgo > 0:
                 response += f"\nTienes {materias_riesgo} materia(s) por debajo de 7.0"
         
-        response += "\n\nTe gustaria ver estrategias para mejorar en alguna materia especifica?"
         return response
     
-    def format_riesgo(self, data):
-        criticos = len([d for d in data if d['nivel_riesgo'] == 'critico'])
-        response = f"**Alumnos que necesitan atencion** ({len(data)} casos activos):\n\n"
+    def _format_schedule(self, data: List[Dict[str, Any]]) -> str:
+        if not data:
+            return "No se encontró horario registrado."
         
-        for row in data:
-            emoji = "🔴" if row['nivel_riesgo'] == 'critico' else "🟡" if row['nivel_riesgo'] == 'alto' else "🟠"
-            response += f"{emoji} **{row['nombre']} {row['apellido']}** ({row['matricula']})\n"
-            response += f"   Carrera: {row['carrera']}\n"
-            response += f"   Riesgo: {row['nivel_riesgo']} ({row['tipo_riesgo']})\n"
-            if row['descripcion']:
-                response += f"   {row['descripcion'][:80]}...\n"
-            response += "\n"
+        response = "Tu Horario de Clases:\n\n"
         
-        if criticos > 0:
-            response += f"**ATENCION URGENTE**: {criticos} estudiantes en riesgo critico requieren intervencion inmediata.\n\n"
-            response += "**Recomendaciones**:\n"
-            response += "• Contactar a padres/tutores hoy mismo\n"
-            response += "• Programar citas individuales esta semana\n"
-            response += "• Evaluar apoyos adicionales (economicos, psicologicos)\n"
+        dias_orden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+        horario_por_dia = {}
         
-        response += "\nTe gustaria que genere un plan de intervencion detallado?"
+        for clase in data:
+            dia = clase.get('dia_semana', 'Sin día')
+            if dia not in horario_por_dia:
+                horario_por_dia[dia] = []
+            horario_por_dia[dia].append(clase)
+        
+        for dia in dias_orden:
+            if dia in horario_por_dia:
+                response += f"{dia}:\n"
+                clases_dia = sorted(horario_por_dia[dia], key=lambda x: x.get('hora_inicio', ''))
+                
+                for clase in clases_dia:
+                    asignatura = clase.get('asignatura', 'Sin nombre')
+                    hora_inicio = clase.get('hora_inicio', '')
+                    hora_fin = clase.get('hora_fin', '')
+                    aula = clase.get('aula', 'Sin aula')
+                    profesor = clase.get('profesor', 'Sin profesor')
+                    
+                    response += f"  {hora_inicio}-{hora_fin} | {asignatura}\n"
+                    response += f"  Aula: {aula} | Prof: {profesor}\n\n"
+        
         return response
     
-    def format_promedio(self, data):
-        response = "**Rendimiento por Carrera:**\n\n"
-        for row in data:
-            porcentaje_riesgo = (row['alumnos_riesgo'] / row['total_alumnos'] * 100) if row['total_alumnos'] > 0 else 0
-            emoji = "🟢" if porcentaje_riesgo < 10 else "🟡" if porcentaje_riesgo < 25 else "🔴"
+    def _format_groups(self, data: List[Dict[str, Any]]) -> str:
+        if not data:
+            return "No se encontraron grupos activos."
+        
+        response = "Grupos Activos en el Sistema:\n\n"
+        
+        for group in data:
+            grupo = group.get('grupo', 'Sin nombre')
+            carrera = group.get('carrera', 'Sin carrera')
+            cuatrimestre = group.get('cuatrimestre', 'Sin cuatrimestre')
+            capacidad = group.get('capacidad_maxima', 0)
+            inscritos = group.get('alumnos_inscritos', 0)
+            tutor = group.get('tutor', 'Sin tutor')
+            ciclo = group.get('ciclo_escolar', 'Sin ciclo')
             
-            response += f"{emoji} **{row['carrera']}**\n"
-            response += f"   Alumnos: {row['total_alumnos']}\n"
-            response += f"   Promedio: {row['promedio_carrera']}\n"
-            response += f"   En riesgo: {row['alumnos_riesgo']} ({porcentaje_riesgo:.1f}%)\n\n"
+            ocupacion = (inscritos / capacidad * 100) if capacidad > 0 else 0
+            emoji = "🔴" if ocupacion > 90 else "🟡" if ocupacion > 75 else "🟢"
+            
+            response += f"{emoji} {grupo} - {carrera}\n"
+            response += f"   Cuatrimestre: {cuatrimestre} | Ciclo: {ciclo}\n"
+            response += f"   Alumnos: {inscritos}/{capacidad} ({ocupacion:.1f}%)\n"
+            response += f"   Tutor: {tutor}\n\n"
         
-        response += "Te gustaria ver un analisis mas detallado de alguna carrera especifica?"
         return response
     
-    def format_estadisticas(self, queries, db):
-        response = "**Estadisticas del Sistema:**\n\n"
+    def _format_generic_data(self, data: List[Dict[str, Any]], intent: str) -> str:
+        response = f"Resultados para tu consulta ({intent}):\n\n"
         
-        for name, query in queries:
-            result = db.execute_query(query)
-            if result:
-                response += f"• **{name}**: {result[0]['total']}\n"
+        for i, item in enumerate(data[:10], 1):
+            response += f"{i}. "
+            for key, value in item.items():
+                if value is not None:
+                    response += f"{key}: {value} | "
+            response = response.rstrip(" | ") + "\n"
         
-        avg_query = "SELECT ROUND(AVG(promedio_general), 2) as promedio_sistema FROM alumnos WHERE estado_alumno = 'activo' AND promedio_general > 0"
-        avg_result = db.execute_query(avg_query)
-        if avg_result and avg_result[0]['promedio_sistema']:
-            response += f"• **Promedio General del Sistema**: {avg_result[0]['promedio_sistema']}\n"
+        if len(data) > 10:
+            response += f"\n... y {len(data) - 10} resultados más."
         
-        response += "\nTe gustaria un analisis mas profundo de alguna area especifica?"
         return response
     
-    def format_error_response(self, error_type):
-        error_messages = {
-            'no_data': "No se encontraron datos para tu consulta.",
-            'permission_denied': "No tienes permisos para acceder a esta informacion.",
-            'database_error': "Hubo un problema conectando con la base de datos.",
-            'invalid_query': "La consulta no es valida.",
-            'general_error': "Ocurrio un error inesperado."
+    def _format_no_data_response(self, intent: str) -> str:
+        no_data_responses = {
+            'calificaciones': "No se encontraron calificaciones registradas para ti.",
+            'horarios': "No se encontró horario registrado.",
+            'grupos': "No se encontraron grupos activos.",
+            'estadisticas': "No se pudieron obtener las estadísticas en este momento.",
+            'riesgo': "No hay alumnos en situación de riesgo actualmente.",
+            'solicitudes': "No hay solicitudes de ayuda registradas."
         }
         
-        return error_messages.get(error_type, error_messages['general_error'])
+        return no_data_responses.get(intent, "No se encontraron datos para tu consulta.")
     
-    def format_success_message(self, action):
-        success_messages = {
-            'data_retrieved': "Informacion obtenida exitosamente.",
-            'query_executed': "Consulta ejecutada correctamente.",
-            'context_updated': "Contexto actualizado.",
-            'user_identified': "Usuario identificado correctamente."
+    def add_suggestions(self, response: str, intent: str, role: str) -> str:
+        suggestions = {
+            'calificaciones': "¿Te gustaría ver estrategias para mejorar en alguna materia?",
+            'horarios': "¿Necesitas información sobre alguna clase específica?",
+            'estadisticas': "¿Te gustaría un análisis más detallado de algún área?",
+            'riesgo': "¿Te gustaría que genere un plan de intervención?",
+            'grupos': "¿Quieres información específica de algún grupo?"
         }
         
-        return success_messages.get(action, "Operacion completada exitosamente.")
+        suggestion = suggestions.get(intent, "¿Hay algo más en lo que te pueda ayudar?")
+        return f"{response}\n\n{suggestion}"

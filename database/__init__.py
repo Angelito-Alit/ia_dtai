@@ -1,9 +1,16 @@
 from .connection import DatabaseConnection
-from .schema_analyzer import SchemaAnalyzer
-from .query_executor import QueryExecutor
+
+__all__ = ['DatabaseConnection']
+__version__ = '1.0.0'
+
+# models/__init__.py  
+from .conversation_ai import ConversationAI
+from .query_generator import QueryGenerator
+from .response_formatter import ResponseFormatter
 
 __all__ = [
-    'DatabaseConnection',
-    'SchemaAnalyzer',
-    'QueryExecutor'
+    'ConversationAI',
+    'QueryGenerator', 
+    'ResponseFormatter'
 ]
+__version__ = '1.0.0'
