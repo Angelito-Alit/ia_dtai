@@ -1,295 +1,175 @@
-
 TRAINING_DATA = {
-    'ver_calificaciones': [
-        "¿Cuáles son mis calificaciones?",
-        "Muéstrame mis notas",
-        "¿Cómo van mis calificaciones este cuatrimestre?",
-        "Quiero ver mis resultados académicos",
-        "¿Qué calificaciones tengo?",
-        "Revisar mis puntuaciones",
-        "¿Cómo estoy en mis materias?",
-        "Consultar mis notas actuales",
-        "Ver mis evaluaciones",
-        "¿Cuál es mi promedio?"
+    'saludo': [
+        'hola',
+        'buenos dias',
+        'buenas tardes',
+        'buenas noches',
+        'hello',
+        'hi',
+        'que tal',
+        'como estas',
+        'saludos'
     ],
-    
-    'alumnos_riesgo': [
-        "¿Qué alumnos están en riesgo?",
-        "Muéstrame estudiantes con problemas",
-        "¿Quiénes necesitan ayuda académica?",
-        "Lista de alumnos en situación de riesgo",
-        "¿Hay estudiantes en peligro de reprobar?",
-        "Alumnos con dificultades académicas",
-        "¿Qué muchachos tienen problemas?",
-        "Estudiantes que requieren atención",
-        "¿Cuántos alumnos están en riesgo crítico?",
-        "Mostrar reportes de riesgo activos"
+    'despedida': [
+        'adios',
+        'hasta luego',
+        'nos vemos',
+        'bye',
+        'chau',
+        'hasta pronto',
+        'me voy',
+        'hasta la vista'
     ],
-    
-    'promedio_carreras': [
-        "¿Cuál es el promedio por carrera?",
-        "Análisis de rendimiento por programa",
-        "¿Cómo van las carreras académicamente?",
-        "Estadísticas de promedios por licenciatura",
-        "Comparar rendimiento entre carreras",
-        "¿Qué carrera tiene mejor promedio?",
-        "Desempeño académico por programa",
-        "¿Cuál es la carrera con mejores calificaciones?",
-        "Promedios generales por especialidad",
-        "Ranking de carreras por rendimiento"
+    'agradecimiento': [
+        'gracias',
+        'muchas gracias',
+        'te lo agradezco',
+        'thank you',
+        'thanks',
+        'muy amable',
+        'excelente ayuda'
     ],
-    
-    'materias_reprobadas': [
-        "¿Qué materias tienen más reprobados?",
-        "Asignaturas con mayor índice de reprobación",
-        "¿Cuáles son las materias más difíciles?",
-        "Materias problemáticas del cuatrimestre",
-        "¿En qué clases reprueban más?",
-        "Asignaturas con bajo rendimiento",
-        "¿Qué materias necesitan refuerzo?",
-        "Análisis de reprobación por materia",
-        "Materias con más dificultades",
-        "¿Cuáles son las clases más complicadas?"
+    'calificaciones': [
+        'mis calificaciones',
+        'mis notas',
+        'como van mis materias',
+        'que calificaciones tengo',
+        'ver mis puntuaciones',
+        'resultados academicos',
+        'como voy en el semestre',
+        'mis evaluaciones',
+        'notas del cuatrimestre',
+        'rendimiento academico'
     ],
-    
-    'mi_horario': [
-        "¿Cuál es mi horario?",
-        "Muéstrame mis clases",
-        "¿Cuándo tengo clases?",
-        "Mi calendario de materias",
-        "¿Qué hora tengo matemáticas?",
-        "Horario de esta semana",
-        "¿Cuándo es mi próxima clase?",
-        "Ver mi programa de clases",
-        "¿A qué hora empiezan mis clases?",
-        "Calendario académico personal"
+    'riesgo': [
+        'alumnos en riesgo',
+        'estudiantes con problemas',
+        'quien necesita ayuda',
+        'reportes de riesgo',
+        'alumnos problema',
+        'estudiantes en dificultades',
+        'casos criticos',
+        'alumnos que necesitan atencion'
     ],
-    
-    'mis_grupos': [
-        "¿Cuáles son mis grupos?",
-        "Muéstrame las clases que imparto",
-        "¿Qué materias tengo asignadas?",
-        "Lista de mis grupos actuales",
-        "¿Cuántos grupos manejo?",
-        "Mis asignaciones académicas",
-        "¿Qué clases doy este cuatrimestre?",
-        "Grupos bajo mi responsabilidad",
-        "¿Cuáles son mis asignaturas?",
-        "Materias que imparto"
+    'promedio': [
+        'promedio por carrera',
+        'rendimiento por carrera',
+        'como van las carreras',
+        'estadisticas por programa',
+        'promedios generales',
+        'rendimiento academico por area'
     ],
-    
-    'solicitudes_pendientes': [
-        "¿Hay solicitudes de ayuda pendientes?",
-        "Muéstrame las peticiones sin resolver",
-        "¿Qué estudiantes pidieron ayuda?",
-        "Solicitudes que requieren atención",
-        "¿Cuántas ayudas están pendientes?",
-        "Alumnos esperando respuesta",
-        "¿Hay casos urgentes por atender?",
-        "Peticiones de apoyo sin resolver",
-        "¿Qué solicitudes debo revisar?",
-        "Casos pendientes de seguimiento"
+    'estadisticas': [
+        'estadisticas generales',
+        'numeros del sistema',
+        'resumen general',
+        'datos globales',
+        'metricas del sistema',
+        'indicadores generales',
+        'panorama general'
     ],
-    
-    'estadisticas_generales': [
-        "¿Cómo está el sistema en general?",
-        "Dame un resumen del estado actual",
-        "Estadísticas generales de la universidad",
-        "¿Cuáles son los números principales?",
-        "Panorama general del cuatrimestre",
-        "Indicadores principales del sistema",
-        "¿Cómo van las cosas en general?",
-        "Resumen ejecutivo de la situación",
-        "Datos generales de la institución",
-        "¿Cuál es el estado actual?"
+    'emocional_positivo': [
+        'me siento bien',
+        'estoy feliz',
+        'todo va excelente',
+        'muy contento',
+        'todo perfecto',
+        'estoy motivado',
+        'genial'
     ],
-    
-    'buscar_alumno': [
-        "Buscar alumno Juan Pérez",
-        "¿Dónde está el estudiante con matrícula 12345?",
-        "Información del alumno García",
-        "Localizar estudiante por nombre",
-        "¿Existe el alumno Pedro López?",
-        "Datos del estudiante con matrícula 67890",
-        "Buscar información de María González",
-        "¿En qué grupo está el alumno Rodríguez?",
-        "Consultar expediente del estudiante",
-        "Encontrar alumno por apellido"
+    'emocional_negativo': [
+        'me siento mal',
+        'estoy triste',
+        'tengo problemas',
+        'estoy preocupado',
+        'me siento deprimido',
+        'todo va mal',
+        'tengo miedo'
     ],
-    
-    'solicitar_ayuda': [
-        "Necesito ayuda con mi situación académica",
-        "Tengo problemas económicos",
-        "Requiero apoyo psicológico",
-        "No puedo pagar la colegiatura",
-        "Tengo dificultades familiares",
-        "Necesito orientación académica",
-        "Estoy pasando por una crisis personal",
-        "Requiero ayuda financiera",
-        "Tengo problemas de salud mental",
-        "Necesito hablar con alguien"
+    'pregunta_identidad': [
+        'quien eres',
+        'que eres',
+        'que puedes hacer',
+        'como me puedes ayudar',
+        'para que sirves',
+        'que funciones tienes'
+    ],
+    'pregunta_estado': [
+        'como estas',
+        'que tal estas',
+        'como te va',
+        'todo bien',
+        'how are you'
     ]
 }
-RESPONSE_PATTERNS = {
-    'ver_calificaciones': {
-        'no_data': [
-            "No encontré calificaciones registradas para ti en este período.",
-            "Aún no tienes calificaciones capturadas este cuatrimestre.",
-            "No hay notas disponibles en el sistema actualmente."
-        ],
-        'intro': [
-            "Aquí tienes tus calificaciones actuales:",
-            "Te muestro tu resumen académico:",
-            "Estos son tus resultados hasta ahora:"
-        ]
-    },
-    
-    'alumnos_riesgo': {
-        'no_data': [
-            "¡Excelente! No hay alumnos en situación de riesgo actualmente.",
-            "Perfecto, todos los estudiantes están bien encaminados.",
-            "No se detectaron alumnos en riesgo en este momento."
-        ],
-        'intro': [
-            "He identificado estos alumnos que requieren atención:",
-            "Los siguientes estudiantes están en situación de riesgo:",
-            "Estos alumnos necesitan seguimiento especial:"
-        ]
-    },
-    
-    'promedio_carreras': {
-        'no_data': [
-            "No se encontraron datos de carreras con alumnos activos.",
-            "No hay información de promedios disponible actualmente.",
-            "No se pudieron obtener las estadísticas por carrera."
-        ],
-        'intro': [
-            "Aquí tienes el análisis de rendimiento por carrera:",
-            "Te muestro las estadísticas académicas por programa:",
-            "Estos son los promedios por carrera:"
-        ]
-    }
-}
-CONVERSATION_EXAMPLES = [
-    {
-        'role': 'alumno',
-        'messages': [
-            {
-                'user': "¿Cómo van mis calificaciones?",
-                'intent': 'ver_calificaciones',
-                'ai': "Te muestro tu resumen académico actual. Tienes un promedio general de 8.5, con 4 materias aprobadas y 1 en proceso. Tu mejor materia es Programación con 9.2 y necesitas mejorar en Matemáticas donde tienes 7.1."
-            },
-            {
-                'user': "¿Qué puedo hacer para mejorar en matemáticas?",
-                'intent': 'solicitar_ayuda',
-                'ai': "Te recomiendo: 1) Asistir a las tutorías gratuitas los martes y jueves, 2) Formar un grupo de estudio con compañeros, 3) Practicar ejercicios adicionales, 4) Solicitar asesoría personalizada con el profesor. ¿Te gustaría que te ayude a programar una cita de tutoría?"
-            }
-        ]
-    },
-    {
-        'role': 'profesor',
-        'messages': [
-            {
-                'user': "¿Qué alumnos de mis grupos están en riesgo?",
-                'intent': 'alumnos_riesgo',
-                'ai': "En tus grupos hay 3 alumnos que requieren atención: Juan Pérez (ISW-501) con promedio 6.8 y 5 faltas, Ana García (ISW-501) con 2 materias reprobadas, y Carlos López (IMT-301) con reporte de problemas familiares. Te recomiendo programar citas individuales esta semana."
-            }
-        ]
-    },
-    {
-        'role': 'directivo',
-        'messages': [
-            {
-                'user': "Dame un panorama general del cuatrimestre",
-                'intent': 'estadisticas_generales',
-                'ai': "Resumen del cuatrimestre actual: 1,247 alumnos activos, promedio general de 8.1, 15% de estudiantes en riesgo académico, 23 solicitudes de ayuda pendientes, y 89% de asistencia promedio. Las carreras con mejor rendimiento son Gastronomía (8.6) e Ingeniería en Sistemas (8.4)."
-            }
-        ]
-    }
-]
+
 DOMAIN_ENTITIES = {
+    'materias': [
+        'matematicas', 'fisica', 'quimica', 'biologia', 'historia',
+        'geografia', 'literatura', 'ingles', 'programacion', 'base de datos',
+        'redes', 'sistemas operativos', 'algoritmos', 'calculo', 'algebra'
+    ],
     'carreras': [
-        'sistemas', 'industrial', 'administracion', 'mecatronica', 'gastronomia',
-        'computacion', 'informatica', 'software', 'negocios', 'empresas',
-        'manufactura', 'produccion', 'robotica', 'automatizacion', 'culinaria'
+        'ingenieria en sistemas', 'ingenieria industrial', 'administracion',
+        'contaduria', 'derecho', 'medicina', 'psicologia', 'arquitectura',
+        'diseño grafico', 'mercadotecnia'
     ],
-    
-    'materias_comunes': [
-        'matematicas', 'fisica', 'quimica', 'programacion', 'algoritmos',
-        'base de datos', 'redes', 'ingles', 'estadistica', 'calculo',
-        'contabilidad', 'marketing', 'finanzas', 'recursos humanos',
-        'diseño', 'manufactura', 'calidad', 'logistica'
-    ],
-    
-    'periodos': [
-        'ene-abr', 'may-ago', 'sep-dic', 'enero-abril', 'mayo-agosto',
-        'septiembre-diciembre', 'primer cuatrimestre', 'segundo cuatrimestre',
-        'tercer cuatrimestre'
-    ],
-    
-    'tipos_riesgo': [
-        'academico', 'asistencia', 'conducta', 'economico', 'personal',
-        'familiar', 'salud mental', 'financiero', 'emocional'
-    ],
-    
     'niveles_riesgo': [
-        'bajo', 'medio', 'alto', 'critico', 'leve', 'moderado', 'severo'
+        'critico', 'alto', 'medio', 'bajo'
     ],
-    
-    'estados_alumno': [
-        'activo', 'baja temporal', 'egresado', 'baja definitiva',
-        'regular', 'irregular', 'condicional'
+    'tipos_riesgo': [
+        'academico', 'economico', 'personal', 'familiar', 'salud'
+    ],
+    'estados': [
+        'activo', 'inactivo', 'graduado', 'baja temporal', 'baja definitiva'
     ]
 }
-def get_training_data_by_intent(intent):
-    return TRAINING_DATA.get(intent, [])
 
 def get_all_training_data():
     all_data = []
     for intent, examples in TRAINING_DATA.items():
         for example in examples:
-            all_data.append({
-                'text': example,
-                'intent': intent
-            })
+            all_data.append((example, intent))
     return all_data
 
-def get_response_patterns_for_intent(intent):
-    return RESPONSE_PATTERNS.get(intent, {})
-
-def get_conversation_examples_by_role(role):
-    return [conv for conv in CONVERSATION_EXAMPLES if conv['role'] == role]
-
-def get_domain_entities():
-    return DOMAIN_ENTITIES
+def get_training_data_by_intent(intent):
+    return TRAINING_DATA.get(intent, [])
 
 def validate_training_data():
-    issues = []
-    for intent in TRAINING_DATA:
-        if len(TRAINING_DATA[intent]) < 5:
-            issues.append(f"Intención '{intent}' tiene pocos ejemplos ({len(TRAINING_DATA[intent])})")
-    all_texts = []
-    for examples in TRAINING_DATA.values():
-        all_texts.extend(examples)
+    total_examples = sum(len(examples) for examples in TRAINING_DATA.values())
+    intent_counts = {intent: len(examples) for intent, examples in TRAINING_DATA.items()}
     
-    if len(all_texts) != len(set(all_texts)):
-        issues.append("Hay ejemplos duplicados en los datos de entrenamiento")
-    
-    return issues
-def generate_synthetic_data(intent, count=10):
-    templates = {
-        'ver_calificaciones': [
-            "¿Cómo van mis {materia}?",
-            "Mostrar mis notas de {periodo}",
-            "¿Cuál es mi promedio en {materia}?",
-            "Revisar calificaciones del {cuatrimestre} cuatrimestre"
-        ],
-        'alumnos_riesgo': [
-            "¿Qué alumnos de {carrera} están en riesgo?",
-            "Estudiantes con riesgo {tipo_riesgo}",
-            "¿Hay alumnos en riesgo {nivel_riesgo}?",
-            "Mostrar reportes de riesgo de {periodo}"
-        ]
+    validation = {
+        'total_examples': total_examples,
+        'total_intents': len(TRAINING_DATA),
+        'intent_distribution': intent_counts,
+        'min_examples_per_intent': min(intent_counts.values()),
+        'max_examples_per_intent': max(intent_counts.values()),
+        'balanced': max(intent_counts.values()) / min(intent_counts.values()) <= 3
     }
     
-    return templates.get(intent, [])
+    return validation
+
+def add_training_example(intent, example):
+    if intent not in TRAINING_DATA:
+        TRAINING_DATA[intent] = []
+    
+    if example not in TRAINING_DATA[intent]:
+        TRAINING_DATA[intent].append(example)
+        return True
+    return False
+
+def get_intent_keywords(intent):
+    if intent not in TRAINING_DATA:
+        return []
+    
+    all_words = []
+    for example in TRAINING_DATA[intent]:
+        all_words.extend(example.split())
+    
+    word_freq = {}
+    for word in all_words:
+        word_freq[word] = word_freq.get(word, 0) + 1
+    
+    sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+    return [word for word, freq in sorted_words[:10]]
