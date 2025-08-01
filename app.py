@@ -5,7 +5,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from models.conversation_ai import ConversationAI
-from database.connection import DatabaseConnection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,14 +12,18 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-ai_system = ConversationAI()
-db = DatabaseConnection()
+try:
+    ai_system = ConversationAI()
+    logger.info("Sistema de IA cargado correctamente")
+except Exception as e:
+    logger.error(f"Error cargando sistema IA: {e}")
+    ai_system = None
 
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
         "status": "FUNCIONANDO",
-        "message": "IA Conversacional Educativa - Railway Deploy",
+        "message": "IA Conversacional Educativa - Render Deploy",
         "version": "2.0.0",
         "features": [
             "Conversación Natural",
@@ -33,28 +36,33 @@ def home():
             "test": "/api/test",
             "chat": "/api/chat",
             "suggestions": "/api/suggestions",
-            "context": "/api/context/<user_id>",
             "status": "/api/status"
         },
         "supported_roles": ["alumno", "profesor", "directivo"],
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "python_version": f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}",
+        "ai_system": "Cargado" if ai_system else "Error"
     })
 
 @app.route('/api/test', methods=['GET'])
 def test_system():
     try:
+        if not ai_system:
+            return jsonify({
+                "success": False,
+                "message": "Sistema IA no disponible",
+                "error": "AI system initialization failed"
+            }), 500
+        
         system_status = ai_system.get_system_status()
-        db_test = db.execute_query("SELECT 1 as test, 'MySQL Conectado' as mensaje, NOW() as tiempo")
         
         return jsonify({
             "success": True,
             "message": "Sistema completamente funcional",
             "system_status": system_status,
-            "database_test": db_test[0] if db_test else None,
             "components": {
                 "flask_app": "OK",
-                "conversation_ai": "OK",
-                "database": "OK" if db_test else "ERROR",
+                "conversation_ai": "OK" if ai_system else "ERROR",
                 "intent_classification": "OK",
                 "query_generation": "OK",
                 "response_formatting": "OK"
@@ -73,6 +81,13 @@ def test_system():
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
+        if not ai_system:
+            return jsonify({
+                "success": False,
+                "error": "Sistema IA no disponible",
+                "response": "Lo siento, el sistema está temporalmente fuera de servicio."
+            }), 500
+        
         data = request.get_json()
         
         if not data or 'message' not in data:
@@ -100,14 +115,6 @@ def chat():
             })
         
         logger.info(f"Chat - Usuario: {user_id}, Rol: {role}, Mensaje: {message[:50]}...")
-        
-        has_permission, permission_msg = ai_system.validate_user_permissions(role, 'general')
-        if not has_permission:
-            return jsonify({
-                "success": False,
-                "response": permission_msg,
-                "intent": "acceso_denegado"
-            }), 403
         
         result = ai_system.process_message(message, user_id, role)
         
@@ -144,8 +151,13 @@ def chat():
 @app.route('/api/suggestions', methods=['GET'])
 def get_suggestions():
     try:
-        role = request.args.get('role', 'alumno')
+        if not ai_system:
+            return jsonify({
+                "success": False,
+                "error": "Sistema IA no disponible"
+            }), 500
         
+        role = request.args.get('role', 'alumno')
         commands_data = ai_system.get_available_commands(role)
         
         return jsonify({
@@ -153,12 +165,7 @@ def get_suggestions():
             "suggestions": commands_data["commands"],
             "role": role,
             "total_commands": commands_data["total_commands"],
-            "message": f"Comandos disponibles para {role}",
-            "categories": {
-                "conversational": ["Hola", "¿Cómo estás?", "Gracias"],
-                "academic": ["Calificaciones", "Horarios", "Materias"],
-                "administrative": ["Estadísticas", "Reportes", "Grupos"]
-            }
+            "message": f"Comandos disponibles para {role}"
         })
         
     except Exception as e:
@@ -168,45 +175,16 @@ def get_suggestions():
             "error": str(e)
         }), 500
 
-@app.route('/api/context/<int:user_id>', methods=['GET'])
-def get_user_context(user_id):
-    try:
-        context_summary = ai_system.get_context_summary(user_id)
-        
-        return jsonify({
-            "success": True,
-            "context": context_summary,
-            "message": f"Contexto para usuario {user_id}"
-        })
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo contexto: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/api/context/<int:user_id>', methods=['DELETE'])
-def clear_user_context(user_id):
-    try:
-        cleared = ai_system.clear_context(user_id)
-        
-        return jsonify({
-            "success": True,
-            "cleared": cleared,
-            "message": f"Contexto {'limpiado' if cleared else 'no encontrado'} para usuario {user_id}"
-        })
-        
-    except Exception as e:
-        logger.error(f"Error limpiando contexto: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
 @app.route('/api/status', methods=['GET'])
 def system_status():
     try:
+        if not ai_system:
+            return jsonify({
+                "success": False,
+                "status": "AI system unavailable",
+                "error": "Sistema IA no inicializado"
+            }), 500
+        
         status = ai_system.get_system_status()
         
         return jsonify({
@@ -224,59 +202,7 @@ def system_status():
             "error": str(e)
         }), 500
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze_query():
-    try:
-        data = request.get_json()
-        message = data.get('message', '')
-        
-        if not message:
-            return jsonify({
-                "success": False,
-                "error": "Mensaje requerido"
-            }), 400
-        
-        complexity = ai_system.analyze_query_complexity(message)
-        intent_suggestions = ai_system.intent_classifier.suggest_intents(message)
-        
-        return jsonify({
-            "success": True,
-            "message": message,
-            "complexity_analysis": complexity,
-            "intent_suggestions": intent_suggestions,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error en analyze: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.errorhandler(403)
-def forbidden(error):
-    return jsonify({
-        "error": "Acceso denegado",
-        "message": "No tienes permisos para realizar esta acción"
-    }), 403
-
-@app.errorhandler(400)
-def bad_request(error):
-    return jsonify({
-        "error": "Solicitud incorrecta",
-        "message": "Revisa los parámetros enviados"
-    }), 400
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    logger.info(f"Iniciando IA Conversacional Educativa en puerto {port}")
-    logger.info(f"Modo debug: {debug_mode}")
-    logger.info("Componentes del sistema cargados correctamente")
-    
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)handler(404)
+@app.errorhandler(404)
 def not_found(error):
     return jsonify({
         "error": "Endpoint no encontrado",
@@ -286,9 +212,7 @@ def not_found(error):
             "/api/test",
             "/api/chat",
             "/api/suggestions",
-            "/api/context/<user_id>",
-            "/api/status",
-            "/api/analyze"
+            "/api/status"
         ]
     }), 404
 
@@ -300,4 +224,12 @@ def server_error(error):
         "message": "Algo salió mal en el procesamiento"
     }), 500
 
-@app.error
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    logger.info(f"Iniciando IA Conversacional Educativa en puerto {port}")
+    logger.info(f"Modo debug: {debug_mode}")
+    logger.info("Sistema optimizado para Render")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

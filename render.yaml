@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ia-conversacional-dtai
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    plan: free
+    healthCheckPath: /api/test
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DB_HOST
+        value: bluebyte.space
+      - key: DB_USER
+        value: bluebyte_angel
+      - key: DB_PASSWORD
+        value: orbitalsoft
+      - key: DB_NAME
+        value: bluebyte_dtai_web
+      - key: DB_PORT
+        value: 3306
+      - key: FLASK_DEBUG
+        value: False
