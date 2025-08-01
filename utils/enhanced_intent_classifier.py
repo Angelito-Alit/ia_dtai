@@ -3,6 +3,334 @@ import re
 class EnhancedIntentClassifier:
     def __init__(self):
         self.query_patterns = {
+            # Consultas generales sin parámetros específicos
+            'grupos_generales': {
+                'keywords': ['que', 'grupos', 'hay'],
+                'requires': [],
+                'query_type': 'all_groups'
+            },
+            'total_alumnos': {
+                'keywords': ['cuantos', 'alumnos', 'total', 'sistema'],
+                'requires': [],
+                'query_type': 'student_count'
+            },
+            'profesores_activos': {
+                'keywords': ['cuantos', 'profesores', 'activos'],
+                'requires': [],
+                'query_type': 'active_teachers'
+            },
+            'directivos_nivel': {
+                'keywords': ['cuantos', 'directivos', 'nivel', 'acceso'],
+                'requires': [],
+                'query_type': 'directors_by_level'
+            },
+            'usuarios_por_rol': {
+                'keywords': ['cuantos', 'usuarios', 'rol'],
+                'requires': [],
+                'query_type': 'users_by_role'
+            },
+            'grupos_por_carrera': {
+                'keywords': ['cuantos', 'grupos', 'carrera'],
+                'requires': [],
+                'query_type': 'groups_by_career'
+            },
+            'bajas_definitivas': {
+                'keywords': ['cuantos', 'alumnos', 'baja', 'definitivamente'],
+                'requires': [],
+                'query_type': 'permanent_dropouts'
+            },
+            'proporcion_tutores': {
+                'keywords': ['proporcion', 'profesores', 'tutores'],
+                'requires': [],
+                'query_type': 'tutor_ratio'
+            },
+            'asignaturas_activas': {
+                'keywords': ['cuantas', 'asignaturas', 'activas'],
+                'requires': [],
+                'query_type': 'active_subjects'
+            },
+            'reportes_abiertos_count': {
+                'keywords': ['cuantos', 'reportes', 'riesgo', 'abiertos'],
+                'requires': [],
+                'query_type': 'open_reports_count'
+            },
+            'solicitudes_pendientes_count': {
+                'keywords': ['cuantas', 'solicitudes', 'ayuda', 'sin', 'atender', 'pendientes'],
+                'requires': [],
+                'query_type': 'pending_requests_count'
+            },
+            
+            # Análisis por año y periodo
+            'grupos_año': {
+                'keywords': ['cuantos', 'grupos', 'crearon', 'año'],
+                'requires': ['año'],
+                'query_type': 'groups_by_year'
+            },
+            'alumnos_periodo': {
+                'keywords': ['cuantos', 'alumnos', 'inscribieron', 'periodo'],
+                'requires': ['periodo'],
+                'query_type': 'students_by_period'
+            },
+            'solicitudes_año': {
+                'keywords': ['cuantas', 'solicitudes', 'ayuda', 'año'],
+                'requires': ['año'],
+                'query_type': 'requests_by_year'
+            },
+            'calificaciones_ciclo': {
+                'keywords': ['cuantas', 'calificaciones', 'registraron', 'ciclo'],
+                'requires': ['ciclo_escolar'],
+                'query_type': 'grades_by_cycle'
+            },
+            'carrera_mas_alumnos_nuevos': {
+                'keywords': ['carrera', 'mas', 'alumnos', 'nuevos', 'ciclo'],
+                'requires': ['ciclo_escolar'],
+                'query_type': 'career_most_new_students'
+            },
+            
+            # Datos de carrera y asignatura
+            'carrera_mas_asignaturas': {
+                'keywords': ['carrera', 'mayor', 'cantidad', 'asignaturas'],
+                'requires': [],
+                'query_type': 'career_most_subjects'
+            },
+            'asignatura_mas_horas_practicas': {
+                'keywords': ['asignatura', 'mayor', 'cantidad', 'horas', 'practicas'],
+                'requires': [],
+                'query_type': 'subject_most_practical_hours'
+            },
+            'asignaturas_mayor_complejidad': {
+                'keywords': ['asignaturas', 'mayor', 'complejidad'],
+                'requires': [],
+                'query_type': 'highest_complexity_subjects'
+            },
+            'carrera_mas_profesores': {
+                'keywords': ['carrera', 'mas', 'profesores', 'asignados'],
+                'requires': [],
+                'query_type': 'career_most_teachers'
+            },
+            'alumnos_por_cuatrimestre_carrera': {
+                'keywords': ['cuantos', 'alumnos', 'cuatrimestre', 'carrera'],
+                'requires': ['nombre_carrera'],
+                'query_type': 'students_per_term_career'
+            },
+            
+            # Profesores
+            'profesor_mas_asignaturas': {
+                'keywords': ['profesor', 'mas', 'asignaturas', 'asignadas'],
+                'requires': [],
+                'query_type': 'teacher_most_subjects'
+            },
+            'profesores_multiples_grupos': {
+                'keywords': ['profesores', 'imparten', 'mas', 'grupo'],
+                'requires': [],
+                'query_type': 'teachers_multiple_groups'
+            },
+            'profesores_inactivos': {
+                'keywords': ['profesores', 'inactivos'],
+                'requires': [],
+                'query_type': 'inactive_teachers'
+            },
+            'profesores_por_carrera_count': {
+                'keywords': ['cuantos', 'profesores', 'carrera'],
+                'requires': [],
+                'query_type': 'teachers_per_career'
+            },
+            'profesores_mas_reportes': {
+                'keywords': ['profesores', 'mas', 'reportes', 'riesgo'],
+                'requires': [],
+                'query_type': 'teachers_most_reports'
+            },
+            
+            # Alumnos
+            'alumno_promedio_mas_alto': {
+                'keywords': ['alumno', 'promedio', 'mas', 'alto', 'sistema'],
+                'requires': [],
+                'query_type': 'highest_gpa_student'
+            },
+            'alumnos_promedio_bajo': {
+                'keywords': ['alumnos', 'promedio', 'menor'],
+                'requires': [],
+                'query_type': 'low_gpa_students'
+            },
+            'alumnos_ultimo_cuatrimestre': {
+                'keywords': ['cuantos', 'alumnos', 'ultimo', 'cuatrimestre'],
+                'requires': [],
+                'query_type': 'final_term_students'
+            },
+            'alumnos_con_grupo': {
+                'keywords': ['cuantos', 'alumnos', 'asignado', 'grupo'],
+                'requires': [],
+                'query_type': 'students_with_group'
+            },
+            'alumnos_multiples_reportes': {
+                'keywords': ['cuantos', 'alumnos', 'mas', 'reporte', 'riesgo'],
+                'requires': [],
+                'query_type': 'students_multiple_reports'
+            },
+            
+            # Calificaciones
+            'aprobados_ordinario_ciclo': {
+                'keywords': ['cuantos', 'alumnos', 'aprobaron', 'ordinario', 'ciclo'],
+                'requires': ['ciclo_escolar'],
+                'query_type': 'passed_ordinary_cycle'
+            },
+            'asignaturas_extraordinarias': {
+                'keywords': ['asignaturas', 'mas', 'casos', 'extraordinaria'],
+                'requires': [],
+                'query_type': 'subjects_most_extraordinary'
+            },
+            'promedio_por_asignatura': {
+                'keywords': ['promedio', 'general', 'asignatura'],
+                'requires': [],
+                'query_type': 'average_per_subject'
+            },
+            'profesor_mas_reprobatorias': {
+                'keywords': ['profesor', 'mas', 'calificaciones', 'reprobatorias'],
+                'requires': [],
+                'query_type': 'teacher_most_failing_grades'
+            },
+            'calificacion_promedio_grupo': {
+                'keywords': ['calificacion', 'promedio', 'grupo'],
+                'requires': [],
+                'query_type': 'average_grade_per_group'
+            },
+            
+            # Horarios y grupos
+            'aula_mas_usada': {
+                'keywords': ['aula', 'usa', 'mas', 'veces', 'semana'],
+                'requires': [],
+                'query_type': 'most_used_classroom'
+            },
+            'grupo_mas_alumnos': {
+                'keywords': ['grupo', 'mas', 'alumnos', 'inscritos'],
+                'requires': [],
+                'query_type': 'largest_group'
+            },
+            'grupos_capacidad_mayor': {
+                'keywords': ['cuantos', 'grupos', 'capacidad', 'mayor'],
+                'requires': ['numero_capacidad'],
+                'query_type': 'groups_capacity_over'
+            },
+            'grupos_misma_aula_horario': {
+                'keywords': ['grupos', 'asignados', 'mismo', 'aula', 'horario'],
+                'requires': [],
+                'query_type': 'groups_same_classroom_schedule'
+            },
+            'clases_sabados': {
+                'keywords': ['cuantas', 'clases', 'imparten', 'sabados'],
+                'requires': [],
+                'query_type': 'saturday_classes'
+            },
+            
+            # Reportes de riesgo
+            'reportes_por_tipo': {
+                'keywords': ['cuantos', 'reportes', 'tipo', 'riesgo'],
+                'requires': [],
+                'query_type': 'reports_by_type'
+            },
+            'alumnos_reportes_criticos': {
+                'keywords': ['alumnos', 'mas', 'reporte', 'critico'],
+                'requires': [],
+                'query_type': 'students_multiple_critical_reports'
+            },
+            'reportes_resueltos': {
+                'keywords': ['cuantos', 'reportes', 'resuelto'],
+                'requires': [],
+                'query_type': 'resolved_reports'
+            },
+            'reportes_sin_seguimiento': {
+                'keywords': ['cuantos', 'reportes', 'sin', 'seguimiento'],
+                'requires': [],
+                'query_type': 'reports_no_follow_up'
+            },
+            'profesores_mas_5_reportes': {
+                'keywords': ['profesores', 'generado', 'mas', '5', 'reportes'],
+                'requires': [],
+                'query_type': 'teachers_over_5_reports'
+            },
+            
+            # Solicitudes y chat
+            'solicitudes_por_directivo': {
+                'keywords': ['cuantas', 'solicitudes', 'respondidas', 'directivo'],
+                'requires': [],
+                'query_type': 'requests_per_director'
+            },
+            'alumnos_mas_chat': {
+                'keywords': ['alumnos', 'usado', 'mas', 'chat', 'ayuda'],
+                'requires': [],
+                'query_type': 'students_most_chat_usage'
+            },
+            'solicitudes_presenciales': {
+                'keywords': ['cuantas', 'solicitudes', 'atendieron', 'presencialmente'],
+                'requires': [],
+                'query_type': 'in_person_requests'
+            },
+            'tiempo_promedio_respuesta': {
+                'keywords': ['promedio', 'tiempo', 'solicitud', 'respuesta'],
+                'requires': [],
+                'query_type': 'average_response_time'
+            },
+            'problema_mas_repetido': {
+                'keywords': ['tipo', 'problema', 'repite', 'mas', 'solicitudes'],
+                'requires': [],
+                'query_type': 'most_common_problem'
+            },
+            
+            # Noticias y foro
+            'noticias_mas_vistas': {
+                'keywords': ['noticias', 'mas', 'vistas'],
+                'requires': [],
+                'query_type': 'most_viewed_news'
+            },
+            'publicaciones_categoria_foro': {
+                'keywords': ['cuantas', 'publicaciones', 'categoria', 'foro'],
+                'requires': [],
+                'query_type': 'posts_per_forum_category'
+            },
+            'usuario_mas_posts': {
+                'keywords': ['usuario', 'publicado', 'mas', 'posts', 'foro'],
+                'requires': [],
+                'query_type': 'user_most_posts'
+            },
+            'bookmarks_posts': {
+                'keywords': ['cuantas', 'veces', 'utilizado', 'bookmark', 'posts'],
+                'requires': [],
+                'query_type': 'bookmark_usage'
+            },
+            'comentarios_mas_likes': {
+                'keywords': ['comentarios', 'mas', 'likes'],
+                'requires': [],
+                'query_type': 'most_liked_comments'
+            },
+            
+            # Encuestas
+            'encuesta_mas_respuestas': {
+                'keywords': ['encuesta', 'mas', 'respuestas', 'registradas'],
+                'requires': [],
+                'query_type': 'survey_most_responses'
+            },
+            'alumnos_sin_encuesta': {
+                'keywords': ['cuantos', 'alumnos', 'no', 'respondido', 'encuesta', 'obligatoria'],
+                'requires': [],
+                'query_type': 'students_no_survey_response'
+            },
+            'opcion_mas_seleccionada': {
+                'keywords': ['opcion', 'mas', 'seleccionada', 'encuesta', 'vulnerabilidad'],
+                'requires': [],
+                'query_type': 'most_selected_option_vulnerability'
+            },
+            'encuestas_por_profesor': {
+                'keywords': ['cuantas', 'encuestas', 'creado', 'profesor'],
+                'requires': [],
+                'query_type': 'surveys_per_teacher'
+            },
+            'preguntas_respuestas_no': {
+                'keywords': ['preguntas', 'encuesta', 'recibieron', 'respuestas', 'no', 'frecuencia'],
+                'requires': ['titulo_encuesta'],
+                'query_type': 'survey_no_answers_frequency'
+            },
+            
+            # Consultas existentes que ya tenías
             'promedio_alumno': {
                 'keywords': ['promedio', 'general', 'alumno', 'estudiante'],
                 'requires': ['nombre_alumno'],
@@ -381,6 +709,10 @@ class EnhancedIntentClassifier:
             'nombre_asignatura': r'(?:asignatura|materia)\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+)',
             'nombre_grupo': r'(?:grupo)\s+([A-Za-z0-9\-]+)',
             'numero_cuatrimestre': r'(?:cuatrimestre|semestre)\s+(\d+)',
+            'numero_capacidad': r'(?:capacidad|mayor|mas)\s+(\d+)',
+            'año': r'(?:año|year)\s+(\d{4})',
+            'periodo': r'(?:periodo|ciclo)\s+([A-Z]{3}-[A-Z]{3}\s+\d{4})',
+            'ciclo_escolar': r'(?:ciclo)\s+([A-Z]{3}-[A-Z]{3}\s+\d{4})',
             'dia_semana': r'(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)',
             'id_reporte': r'(?:reporte)\s+(\d+)',
             'id_solicitud': r'(?:solicitud)\s+(\d+)',
@@ -407,20 +739,24 @@ class EnhancedIntentClassifier:
     
     def get_question_prompt(self, missing_field):
         prompts = {
-            'nombre_alumno': 'Por favor, proporciona el nombre del alumno',
-            'nombre_profesor': 'Por favor, proporciona el nombre del profesor',
-            'nombre_directivo': 'Por favor, proporciona el nombre del directivo',
-            'nombre_carrera': 'Por favor, especifica el nombre de la carrera',
-            'nombre_asignatura': 'Por favor, indica el nombre de la asignatura o materia',
+            'nombre_alumno': 'Por favor, proporciona el nombre completo del alumno',
+            'nombre_profesor': 'Por favor, proporciona el nombre completo del profesor',
+            'nombre_directivo': 'Por favor, proporciona el nombre completo del directivo',
+            'nombre_carrera': 'Por favor, especifica el nombre completo de la carrera',
+            'nombre_asignatura': 'Por favor, indica el nombre completo de la asignatura o materia',
             'nombre_grupo': 'Por favor, especifica el nombre o codigo del grupo',
-            'numero_cuatrimestre': 'Por favor, indica el numero del cuatrimestre',
-            'dia_semana': 'Por favor, especifica el dia de la semana',
-            'id_reporte': 'Por favor, proporciona el ID del reporte',
-            'id_solicitud': 'Por favor, proporciona el ID de la solicitud',
-            'titulo_noticia': 'Por favor, indica el titulo de la noticia',
-            'titulo_encuesta': 'Por favor, especifica el titulo de la encuesta',
-            'id_post': 'Por favor, proporciona el ID del post',
-            'nombre_usuario': 'Por favor, indica el nombre del usuario'
+            'numero_cuatrimestre': 'Por favor, indica el numero del cuatrimestre (ejemplo: 1, 2, 3, etc.)',
+            'numero_capacidad': 'Por favor, especifica el numero de capacidad (ejemplo: 35, 40, etc.)',
+            'año': 'Por favor, indica el año (ejemplo: 2024, 2025)',
+            'periodo': 'Por favor, especifica el periodo (ejemplo: SEP-DIC 2024, ENE-ABR 2025)',
+            'ciclo_escolar': 'Por favor, indica el ciclo escolar (ejemplo: SEP-DIC 2024, MAY-AGO 2025)',
+            'dia_semana': 'Por favor, especifica el dia de la semana (lunes, martes, miercoles, etc.)',
+            'id_reporte': 'Por favor, proporciona el ID numerico del reporte',
+            'id_solicitud': 'Por favor, proporciona el ID numerico de la solicitud',
+            'titulo_noticia': 'Por favor, indica el titulo completo de la noticia entre comillas',
+            'titulo_encuesta': 'Por favor, especifica el titulo completo de la encuesta entre comillas',
+            'id_post': 'Por favor, proporciona el ID numerico del post',
+            'nombre_usuario': 'Por favor, indica el nombre completo del usuario'
         }
         
         return prompts.get(missing_field, f'Por favor, proporciona: {missing_field}')

@@ -154,7 +154,228 @@ class EnhancedConversationAI:
             }
     
     def _format_complex_response(self, data, intent, extracted_data):
-        if intent == 'promedio_alumno':
+        if not data:
+            return "No se encontraron resultados para tu consulta."
+        
+        # Consultas generales
+        if intent == 'grupos_generales':
+            response = "**Grupos Activos en el Sistema:**\n\n"
+            for group in data[:15]:
+                response += f"• **{group['grupo']}** - {group['asignatura']}\n"
+                response += f"   Cuatrimestre: {group['cuatrimestre']}\n"
+                response += f"   Alumnos: {group['total_alumnos']}/{group['capacidad_maxima']}\n"
+                if group['profesor']:
+                    response += f"   Profesor: {group['profesor']}\n"
+                response += "\n"
+            if len(data) > 15:
+                response += f"... y {len(data) - 15} grupos mas.\n"
+            return response
+            
+        elif intent in ['student_count', 'active_teachers', 'permanent_dropouts', 'active_subjects', 'open_reports_count', 'pending_requests_count']:
+            result = data[0]
+            key = list(result.keys())[0]
+            value = result[key]
+            labels = {
+                'total_alumnos': 'alumnos activos',
+                'total_profesores': 'profesores activos',
+                'total_bajas_definitivas': 'alumnos con baja definitiva',
+                'total_asignaturas_activas': 'asignaturas activas',
+                'reportes_abiertos': 'reportes de riesgo abiertos',
+                'solicitudes_pendientes': 'solicitudes de ayuda pendientes'
+            }
+            label = labels.get(key, key.replace('_', ' '))
+            return f"**Total en el sistema:** {value} {label}"
+            
+        elif intent == 'directors_by_level':
+            response = "**Directivos por Nivel de Acceso:**\n\n"
+            for row in data:
+                response += f"• **{row['nivel_acceso'].title()}**: {row['total_directivos']} directivos\n"
+            return response
+            
+        elif intent == 'users_by_role':
+            response = "**Usuarios por Rol:**\n\n"
+            for row in data:
+                response += f"• **{row['rol'].title()}**: {row['total_usuarios']} usuarios\n"
+            return response
+            
+        elif intent == 'groups_by_career':
+            response = "**Grupos por Carrera:**\n\n"
+            for row in data:
+                response += f"• **{row['carrera']}**: {row['total_grupos']} grupos\n"
+            return response
+            
+        elif intent == 'tutor_ratio':
+            result = data[0]
+            response = f"**Proporcion de Profesores Tutores:**\n\n"
+            response += f"• Total profesores: {result['total_profesores']}\n"
+            response += f"• Profesores tutores: {result['tutores']}\n"
+            response += f"• Porcentaje de tutores: {result['porcentaje_tutores']}%\n"
+            return response
+            
+        # Consultas de análisis
+        elif intent in ['groups_by_year', 'students_by_period', 'requests_by_year', 'grades_by_cycle']:
+            result = data[0]
+            key = list(result.keys())[0]
+            value = result[key]
+            return f"**Resultado:** {value} registros encontrados"
+            
+        elif intent == 'career_most_new_students':
+            result = data[0]
+            return f"**Carrera con mas alumnos nuevos:** {result['carrera']} con {result['alumnos_nuevos']} alumnos"
+            
+        # Consultas de datos específicos
+        elif intent in ['career_most_subjects', 'subject_most_practical_hours', 'career_most_teachers', 'teacher_most_subjects', 'largest_group', 'most_used_classroom']:
+            result = data[0]
+            if intent == 'career_most_subjects':
+                return f"**Carrera con mas asignaturas:** {result['carrera']} con {result['total_asignaturas']} asignaturas"
+            elif intent == 'subject_most_practical_hours':
+                return f"**Asignatura con mas horas practicas:** {result['asignatura']} con {result['horas_practicas']} horas"
+            elif intent == 'career_most_teachers':
+                return f"**Carrera con mas profesores:** {result['carrera']} con {result['total_profesores']} profesores"
+            elif intent == 'teacher_most_subjects':
+                return f"**Profesor con mas asignaturas:** {result['profesor']} con {result['total_asignaturas']} asignaturas"
+            elif intent == 'largest_group':
+                return f"**Grupo con mas alumnos:** {result['grupo']} con {result['total_alumnos_inscritos']} alumnos"
+            elif intent == 'most_used_classroom':
+                return f"**Aula mas utilizada:** {result['aula']} se usa {result['veces_usada_semana']} veces por semana"
+                
+        elif intent == 'highest_complexity_subjects':
+            response = "**Asignaturas con Mayor Complejidad:**\n\n"
+            for i, subject in enumerate(data, 1):
+                response += f"{i}. **{subject['asignatura']}** - Nivel {subject['nivel_complejidad']}\n"
+                response += f"   Carrera: {subject['carrera']}\n\n"
+            return response
+            
+        elif intent == 'students_per_term_career':
+            carrera = list(extracted_data.values())[0] if extracted_data else 'la carrera'
+            response = f"**Alumnos por Cuatrimestre en {carrera}:**\n\n"
+            for row in data:
+                response += f"• **Cuatrimestre {row['cuatrimestre_actual']}**: {row['total_alumnos']} alumnos\n"
+            return response
+            
+        elif intent == 'teachers_multiple_groups':
+            response = "**Profesores con Multiples Grupos:**\n\n"
+            for teacher in data:
+                response += f"• **{teacher['profesor']}**: {teacher['total_grupos']} grupos\n"
+            return response
+            
+        elif intent == 'inactive_teachers':
+            response = "**Profesores Inactivos:**\n\n"
+            for teacher in data:
+                response += f"• **{teacher['profesor']}**\n"
+                if teacher['fecha_ultimo_acceso']:
+                    response += f"   Ultimo acceso: {teacher['fecha_ultimo_acceso']}\n"
+                response += "\n"
+            return response
+            
+        elif intent == 'teachers_per_career':
+            response = "**Profesores por Carrera:**\n\n"
+            for row in data:
+                response += f"• **{row['carrera']}**: {row['total_profesores']} profesores\n"
+            return response
+            
+        elif intent == 'highest_gpa_student':
+            result = data[0]
+            return f"**Alumno con Mayor Promedio:** {result['alumno']} ({result['matricula']}) - Promedio: {result['promedio_general']:.2f}"
+            
+        elif intent == 'low_gpa_students':
+            response = "**Alumnos con Promedio Menor a 6.0:**\n\n"
+            for student in data:
+                response += f"• **{student['alumno']}** ({student['matricula']}) - Promedio: {student['promedio_general']:.2f}\n"
+            return response
+            
+        elif intent in ['final_term_students', 'students_with_group', 'students_multiple_reports']:
+            result = data[0]
+            key = list(result.keys())[0]
+            value = result[key]
+            labels = {
+                'alumnos_ultimo_cuatrimestre': 'alumnos en su ultimo cuatrimestre',
+                'alumnos_con_grupo': 'alumnos con grupo asignado',
+                'alumnos_multiples_reportes': 'alumnos con multiples reportes de riesgo'
+            }
+            label = labels.get(key, key.replace('_', ' '))
+            return f"**Total:** {value} {label}"
+            
+        elif intent == 'subjects_most_extraordinary':
+            response = "**Asignaturas con Mas Casos Extraordinarios:**\n\n"
+            for subject in data:
+                response += f"• **{subject['asignatura']}**: {subject['casos_extraordinarios']} casos\n"
+            return response
+            
+        elif intent == 'average_per_subject':
+            response = "**Promedio General por Asignatura:**\n\n"
+            for subject in data[:15]:
+                response += f"• **{subject['asignatura']}**: {subject['promedio_general']}\n"
+            if len(data) > 15:
+                response += f"... y {len(data) - 15} asignaturas mas.\n"
+            return response
+            
+        elif intent == 'teacher_most_failing_grades':
+            result = data[0]
+            return f"**Profesor con mas calificaciones reprobatorias:** {result['profesor']} con {result['calificaciones_reprobatorias']} calificaciones reprobatorias"
+            
+        elif intent == 'average_grade_per_group':
+            response = "**Promedio de Calificaciones por Grupo:**\n\n"
+            for group in data[:15]:
+                response += f"• **{group['grupo']}**: {group['promedio_grupo']}\n"
+            if len(data) > 15:
+                response += f"... y {len(data) - 15} grupos mas.\n"
+            return response
+            
+        elif intent in ['groups_capacity_over', 'saturday_classes']:
+            result = data[0]
+            key = list(result.keys())[0]
+            value = result[key]
+            if intent == 'groups_capacity_over':
+                capacidad = list(extracted_data.values())[0] if extracted_data else 'N/A'
+                return f"**Grupos con capacidad mayor a {capacidad}:** {value} grupos"
+            else:
+                return f"**Clases los sabados:** {value} clases"
+                
+        elif intent == 'groups_same_classroom_schedule':
+            if not data:
+                return "**No se encontraron conflictos de horarios en las aulas.**"
+            response = "**Grupos con Conflictos de Horario en la Misma Aula:**\n\n"
+            for conflict in data:
+                response += f"• **Aula {conflict['aula']}** - {conflict['dia_semana']} {conflict['hora_inicio']}-{conflict['hora_fin']}\n"
+                response += f"   Grupos en conflicto: {conflict['grupos_conflicto']}\n\n"
+            return response
+            
+        elif intent == 'reports_by_type':
+            response = "**Reportes de Riesgo por Tipo:**\n\n"
+            for report_type in data:
+                response += f"• **{report_type['tipo_riesgo'].title()}**: {report_type['total_reportes']} reportes\n"
+            return response
+            
+        elif intent == 'students_multiple_critical_reports':
+            if not data:
+                return "**No hay alumnos con multiples reportes criticos.**"
+            response = "**Alumnos con Multiples Reportes Criticos:**\n\n"
+            for student in data:
+                response += f"• **{student['alumno']}** ({student['matricula']}) - {student['reportes_criticos']} reportes criticos\n"
+            return response
+            
+        elif intent in ['resolved_reports', 'reports_no_follow_up']:
+            result = data[0]
+            key = list(result.keys())[0]
+            value = result[key]
+            labels = {
+                'reportes_resueltos': 'reportes resueltos',
+                'reportes_sin_seguimiento': 'reportes sin seguimiento'
+            }
+            label = labels.get(key, key.replace('_', ' '))
+            return f"**Total:** {value} {label}"
+            
+        elif intent == 'teachers_over_5_reports':
+            if not data:
+                return "**No hay profesores con mas de 5 reportes emitidos.**"
+            response = "**Profesores con Mas de 5 Reportes Emitidos:**\n\n"
+            for teacher in data:
+                response += f"• **{teacher['profesor']}**: {teacher['total_reportes']} reportes\n"
+            return response
+            
+        # Continuar con el resto de consultas específicas
+        elif intent == 'promedio_alumno':
             if data:
                 student = data[0]
                 return f"**Promedio de {student['nombre']} {student['apellido']}**\n\nMatricula: {student['matricula']}\nPromedio General: {student['promedio_general']:.2f}"
@@ -182,6 +403,166 @@ class EnhancedConversationAI:
                 response += f"{status_emoji} **{subject['asignatura']}**: {grade}\n"
                 
                 if subject['parcial_1'] or subject['parcial_2'] or subject['parcial_3']:
+                    parciales = []
+                    if subject['parcial_1']: parciales.append(f"P1: {subject['parcial_1']:.1f}")
+                    if subject['parcial_2']: parciales.append(f"P2: {subject['parcial_2']:.1f}")
+                    if subject['parcial_3']: parciales.append(f"P3: {subject['parcial_3']:.1f}")
+                    response += f"   {' | '.join(parciales)}\n"
+                response += "\n"
+            return response
+            
+        elif intent == 'reportes_riesgo_alumno':
+            alumno_name = list(extracted_data.values())[0] if extracted_data else 'el alumno'
+            if not data:
+                return f"**Reportes de Riesgo de {alumno_name}:**\n\nNo se encontraron reportes de riesgo para este alumno."
+            
+            response = f"**Reportes de Riesgo de {alumno_name}:**\n\n"
+            for report in data:
+                emoji = "🔴" if report['nivel_riesgo'] == 'critico' else "🟡" if report['nivel_riesgo'] == 'alto' else "🟠"
+                response += f"{emoji} **{report['tipo_riesgo'].title()}** - Nivel {report['nivel_riesgo']}\n"
+                response += f"   Fecha: {report['fecha_reporte']}\n"
+                response += f"   Estado: {report['estado']}\n"
+                if report['descripcion']:
+                    response += f"   Descripcion: {report['descripcion'][:100]}...\n"
+                if report['acciones_recomendadas']:
+                    response += f"   Acciones: {report['acciones_recomendadas'][:100]}...\n"
+                response += "\n"
+            return response
+            
+        elif intent == 'grupos_profesor':
+            profesor_name = list(extracted_data.values())[0] if extracted_data else 'el profesor'
+            response = f"**Grupos asignados a {profesor_name}:**\n\n"
+            for group in data:
+                response += f"• **{group['grupo']}** - {group['asignatura']}\n"
+                response += f"   Cuatrimestre: {group['cuatrimestre']}\n"
+                response += f"   Alumnos: {group['total_alumnos']}\n"
+                response += f"   Ciclo: {group['ciclo_escolar']}\n\n"
+            return response
+            
+        elif intent == 'horarios_profesor':
+            profesor_name = list(extracted_data.values())[0] if extracted_data else 'el profesor'
+            response = f"**Horarios de {profesor_name}:**\n\n"
+            current_day = None
+            for schedule in data:
+                if current_day != schedule['dia_semana']:
+                    current_day = schedule['dia_semana']
+                    response += f"**{current_day.title()}:**\n"
+                response += f"   {schedule['hora_inicio']}-{schedule['hora_fin']} | {schedule['asignatura']} | {schedule['grupo']}"
+                if schedule['aula']:
+                    response += f" | Aula: {schedule['aula']}"
+                response += "\n"
+            return response
+        
+        elif intent == 'requests_per_director':
+            response = "**Solicitudes Respondidas por Directivo:**\n\n"
+            for director in data:
+                response += f"• **{director['directivo']}**: {director['solicitudes_respondidas']} solicitudes\n"
+            return response
+            
+        elif intent == 'students_most_chat_usage':
+            response = "**Alumnos que Mas Usan el Chat de Ayuda:**\n\n"
+            for student in data:
+                response += f"• **{student['alumno']}** ({student['matricula']}) - {student['veces_usado_chat']} veces\n"
+            return response
+            
+        elif intent in ['in_person_requests', 'bookmark_usage']:
+            result = data[0]
+            key = list(result.keys())[0]
+            value = result[key]
+            labels = {
+                'solicitudes_presenciales': 'solicitudes atendidas presencialmente',
+                'total_bookmarks': 'veces que se uso bookmark'
+            }
+            label = labels.get(key, key.replace('_', ' '))
+            return f"**Total:** {value} {label}"
+            
+        elif intent == 'average_response_time':
+            result = data[0]
+            if result['promedio_horas_respuesta']:
+                return f"**Tiempo promedio de respuesta:** {result['promedio_horas_respuesta']} horas"
+            else:
+                return "**No se pudo calcular el tiempo promedio de respuesta.**"
+                
+        elif intent == 'most_common_problem':
+            result = data[0]
+            return f"**Problema mas reportado:** {result['tipo_problema']} ({result['veces_reportado']} veces)"
+            
+        elif intent == 'most_viewed_news':
+            response = "**Noticias Mas Vistas:**\n\n"
+            for news in data:
+                response += f"• **{news['titulo']}** - {news['vistas']} vistas\n"
+                response += f"   Autor: {news['autor']}\n\n"
+            return response
+            
+        elif intent == 'posts_per_forum_category':
+            response = "**Publicaciones por Categoria del Foro:**\n\n"
+            for category in data:
+                response += f"• **{category['categoria']}**: {category['total_publicaciones']} publicaciones\n"
+            return response
+            
+        elif intent == 'user_most_posts':
+            result = data[0]
+            return f"**Usuario con mas posts:** {result['usuario']} con {result['total_posts']} publicaciones"
+            
+        elif intent == 'most_liked_comments':
+            response = "**Comentarios con Mas Likes:**\n\n"
+            for comment in data:
+                content = comment['contenido'][:100] + "..." if len(comment['contenido']) > 100 else comment['contenido']
+                response += f"• **{comment['total_likes']} likes** - {content}\n\n"
+            return response
+            
+        elif intent == 'survey_most_responses':
+            result = data[0]
+            return f"**Encuesta con mas respuestas:** {result['titulo']} con {result['total_respuestas']} respuestas"
+            
+        elif intent == 'students_no_survey_response':
+            result = data[0]
+            return f"**Alumnos que no han respondido encuestas obligatorias:** {result['alumnos_sin_respuesta']} alumnos"
+            
+        elif intent == 'most_selected_option_vulnerability':
+            result = data[0]
+            return f"**Opcion mas seleccionada en encuesta de vulnerabilidad:** {result['respuesta']} ({result['veces_seleccionada']} veces)"
+            
+        elif intent == 'surveys_per_teacher':
+            response = "**Encuestas Creadas por Profesor:**\n\n"
+            for teacher in data:
+                response += f"• **{teacher['profesor']}**: {teacher['encuestas_creadas']} encuestas\n"
+            return response
+            
+        elif intent == 'survey_no_answers_frequency':
+            encuesta = list(extracted_data.values())[0] if extracted_data else 'la encuesta'
+            response = f"**Preguntas con mas respuestas 'No' en {encuesta}:**\n\n"
+            for question in data:
+                response += f"• **{question['respuestas_no']} respuestas 'No'** - {question['pregunta'][:80]}...\n\n"
+            return response
+            
+        else:
+            # Respuesta genérica para consultas no específicamente formateadas
+            if len(data) == 1 and len(data[0]) <= 3:
+                result = data[0]
+                response = "**Resultado:**\n\n"
+                for key, value in result.items():
+                    response += f"• **{key.replace('_', ' ').title()}**: {value}\n"
+                return response
+            else:
+                response = f"**Resultados encontrados ({len(data)}):**\n\n"
+                for i, row in enumerate(data[:10], 1):
+                    response += f"**{i}.** "
+                    important_fields = []
+                    for key, value in row.items():
+                        if value is not None and key not in ['id', 'fecha_creacion', 'fecha_actualizacion']:
+                            if 'nombre' in key or 'titulo' in key:
+                                important_fields.insert(0, f"{value}")
+                            else:
+                                important_fields.append(f"{key.replace('_', ' ')}: {value}")
+                    
+                    response += " | ".join(important_fields[:3])
+                    response += "\n"
+                
+                if len(data) > 10:
+                    response += f"\n... y {len(data) - 10} resultados mas."
+                
+                return responseparcial_3']:
                     parciales = []
                     if subject['parcial_1']: parciales.append(f"P1: {subject['parcial_1']:.1f}")
                     if subject['parcial_2']: parciales.append(f"P2: {subject['parcial_2']:.1f}")
