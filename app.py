@@ -4,19 +4,28 @@ import os
 import logging
 from datetime import datetime
 
-from database.connection import DatabaseConnection
-from models.conversation_ai import ConversationAI
-from utils.text_processor import TextProcessor
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-db = DatabaseConnection()
-ai = ConversationAI()
-processor = TextProcessor()
+db = None
+ai = None
+
+def initialize_components():
+    global db, ai
+    try:
+        from database.connection import DatabaseConnection
+        from models.conversation_ai import ConversationAI
+        
+        db = DatabaseConnection()
+        ai = ConversationAI()
+        logger.info("Components initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error initializing components: {e}")
+        return False
 
 @app.route('/', methods=['GET'])
 def home():
@@ -31,6 +40,14 @@ def home():
 
 @app.route('/api/test', methods=['GET'])
 def test():
+    if not db:
+        if not initialize_components():
+            return jsonify({
+                "success": False,
+                "message": "Error inicializando componentes",
+                "database": "Error de inicializacion"
+            }), 500
+    
     try:
         result = db.execute_query("SELECT 1 as test, 'Conexion exitosa a MySQL' as mensaje, NOW() as tiempo")
         
@@ -59,6 +76,14 @@ def test():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
+    if not ai:
+        if not initialize_components():
+            return jsonify({
+                "success": False,
+                "error": "Error inicializando IA",
+                "response": "Sistema no disponible temporalmente",
+            }), 500
+    
     try:
         data = request.get_json()
         
@@ -135,6 +160,13 @@ def suggestions():
 
 @app.route('/api/context/<int:user_id>', methods=['GET'])
 def get_context(user_id):
+    if not ai:
+        if not initialize_components():
+            return jsonify({
+                "success": False,
+                "error": "Sistema no inicializado"
+            }), 500
+    
     context = ai.get_user_context(user_id)
     return jsonify({
         "success": True,
@@ -146,6 +178,13 @@ def get_context(user_id):
 
 @app.route('/api/context/<int:user_id>', methods=['DELETE'])
 def clear_context(user_id):
+    if not ai:
+        if not initialize_components():
+            return jsonify({
+                "success": False,
+                "error": "Sistema no inicializado"
+            }), 500
+    
     ai.clear_user_context(user_id)
     return jsonify({
         "success": True,
@@ -170,4 +209,10 @@ def server_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     logger.info(f"Iniciando IA Conversacional en puerto {port}")
+    
+    if initialize_components():
+        logger.info("Aplicacion lista para recibir requests")
+    else:
+        logger.warning("Aplicacion iniciada con problemas de inicializacion")
+    
     app.run(host='0.0.0.0', port=port, debug=False)
