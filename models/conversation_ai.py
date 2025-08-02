@@ -22,7 +22,7 @@ class ConversationAI:
             if not message or not message.strip():
                 return {
                     "success": True,
-                    "response": "Parece que no escribiste nada. ¿En qué te puedo ayudar?",
+                    "response": "Parece que no escribiste nada. ¿En qué te puedo ayudar? Puedo darte información sobre estadísticas del sistema, alumnos, carreras, grupos, calificaciones y mucho más.",
                     "intent": "mensaje_vacio",
                     "has_data": False
                 }
@@ -47,14 +47,15 @@ class ConversationAI:
             query, params = self.query_generator.generate_query(message, intent, user_id, role)
             
             if not query:
-                response = f"No pude generar la consulta para tu pregunta. Intenta reformularla."
-                self.update_context(user_id, message, 'consulta_fallida', response)
+                suggested_response = self._generate_helpful_suggestion(message, intent, role)
+                self.update_context(user_id, message, 'consulta_sugerencia', suggested_response)
                 
                 return {
-                    "success": False,
-                    "response": response,
-                    "intent": "consulta_fallida",
-                    "has_data": False
+                    "success": True,
+                    "response": suggested_response,
+                    "intent": "consulta_sugerencia",
+                    "has_data": False,
+                    "helpful_suggestion": True
                 }
             
             data = self.db.execute_query(query, params)
@@ -74,7 +75,7 @@ class ConversationAI:
             
         except Exception as e:
             logger.error(f"Error procesando mensaje: {e}")
-            error_response = "Lo siento, tuve un problema procesando tu mensaje. ¿Puedes intentar de nuevo?"
+            error_response = "Lo siento, tuve un problema procesando tu mensaje. ¿Puedes intentar reformulándolo? Por ejemplo: '¿Cuántos alumnos hay?', '¿Qué carreras están disponibles?', o '¿Cuáles son las estadísticas generales?'"
             
             return {
                 "success": False,
@@ -83,6 +84,68 @@ class ConversationAI:
                 "error": str(e),
                 "has_data": False
             }
+    
+    def _generate_helpful_suggestion(self, message: str, intent: str, role: str) -> str:
+        message_lower = message.lower()
+        
+        if any(word in message_lower for word in ['hola', 'hi', 'hello', 'buenas']):
+            return "¡Buenos días! Soy su asistente administrativo de DTAI. Tengo acceso completo al sistema para proporcionarle información sobre: alumnos en riesgo, matrículas específicas, ubicación de grupos, horarios, cargas de profesores, materias problemáticas, solicitudes urgentes y estadísticas completas. ¿Qué información necesita para la gestión académica?"
+        
+        if any(word in message_lower for word in ['ayuda', 'help', 'que puedes hacer']):
+            return """Como directivo, tiene acceso completo a:
+
+🚨 **Gestión de Riesgo** - "¿Qué alumnos están en riesgo crítico?"
+📊 **Análisis Académico** - "¿Cuáles son las materias más reprobadas?"
+📍 **Ubicaciones** - "¿Dónde está el grupo de Ing. Software 3er cuatri?"
+📅 **Horarios** - "¿A qué hora tiene clases el grupo ISW-301?"
+👥 **Capacidad** - "¿Qué grupos están llenos?"
+👨‍🏫 **Profesores** - "¿Qué profesores están sobrecargados?"
+🎓 **Carreras** - "¿Cómo va el rendimiento por carreras?"
+🔍 **Estudiantes** - "Información de matrícula 202412345"
+📋 **Solicitudes** - "¿Qué solicitudes urgentes hay?"
+
+Pregúnteme cualquier cosa para la toma de decisiones administrativas."""
+        
+        directivo_suggestions = {
+            'alumnos': "Como directivo, puede consultar: '¿Qué alumnos tienen las calificaciones más bajas?', '¿Cuáles son las matrículas en riesgo?', o buscar por matrícula específica.",
+            'profesores': "Información disponible: '¿Qué profesores tienen más carga?', '¿Quiénes están sobrecargados?', '¿Cómo está distribuida la carga académica?'",
+            'grupos': "Consultas de grupos: '¿Dónde está ubicado el grupo X?', '¿Qué grupos están llenos?', '¿Cuáles son los horarios de los grupos?'",
+            'materias': "Análisis de materias: '¿Cuáles son las materias más reprobadas?', '¿Qué asignaturas son problemáticas?', '¿Dónde necesitamos refuerzo académico?'",
+            'carreras': "Rendimiento por carreras: '¿Cómo va cada carrera?', '¿Cuál tiene mejor rendimiento?', '¿Dónde hay más problemas académicos?'",
+            'estadisticas': "Estadísticas completas: '¿Cuántos alumnos, profesores y grupos hay?', '¿Cuáles son los números generales?', '¿Qué datos críticos hay?'",
+            'riesgo': "Gestión de riesgo: '¿Qué alumnos están en situación crítica?', '¿Cuántos reportes de riesgo hay?', '¿Qué casos requieren atención inmediata?'",
+            'solicitudes': "Solicitudes administrativas: '¿Qué solicitudes están pendientes?', '¿Cuáles son urgentes?', '¿Qué casos necesitan atención?'"
+        }
+        
+        for keyword, suggestion in directivo_suggestions.items():
+            if keyword in message_lower:
+                return suggestion
+        
+        if len(message.split()) == 1:
+            word = message_lower.strip()
+            quick_responses = {
+                'estadisticas': "Para estadísticas: '¿Cuáles son las estadísticas generales del sistema?'",
+                'grupos': "Para grupos: '¿Qué grupos hay?' o '¿Dónde está el grupo [nombre]?'",
+                'riesgo': "Para riesgo: '¿Qué alumnos están en riesgo?' o '¿Cuáles son los casos críticos?'",
+                'materias': "Para materias: '¿Cuáles son las materias más reprobadas?'",
+                'profesores': "Para profesores: '¿Cómo está la carga de profesores?'",
+                'alumnos': "Para alumnos: '¿Quiénes tienen bajo rendimiento?' o busque por matrícula"
+            }
+            if word in quick_responses:
+                return quick_responses[word]
+        
+        return f"""No identifiqué qué información específica necesita con "{message}".
+
+Como directivo, puede consultar:
+• **Ubicaciones**: "¿Dónde está el grupo [nombre]?"
+• **Horarios**: "¿A qué hora tiene clases el grupo [nombre]?"
+• **Rendimiento**: "¿Qué alumnos tienen bajo rendimiento?"
+• **Riesgo**: "¿Qué estudiantes están en situación crítica?"
+• **Materias**: "¿Cuáles son las materias más problemáticas?"
+• **Profesores**: "¿Quiénes están sobrecargados?"
+• **Matrícula específica**: "Información de matrícula [número]"
+
+¿Podría ser más específico con su consulta administrativa?"""
     
     def get_conversation_context(self, user_id: int) -> Dict[str, Any]:
         if user_id not in self.conversation_contexts:
@@ -129,47 +192,37 @@ class ConversationAI:
         conversational_intents = [
             'saludo', 'despedida', 'agradecimiento', 'pregunta_estado', 
             'pregunta_identidad', 'emocional_negativo', 'emocional_positivo',
-            'afirmacion', 'negacion', 'conversacion_general'
+            'afirmacion', 'negacion'
         ]
         return intent in conversational_intents
     
-    def get_available_commands(self, role: str) -> Dict[str, Any]:
-        commands = {
-            'alumno': [
-                "¿Cuáles son mis calificaciones?",
-                "¿Cuál es mi horario?",
-                "¿Cómo van mis materias?",
-                "¿Cuál es mi promedio?",
-                "Hola, ¿cómo estás?"
-            ],
-            'profesor': [
-                "¿Qué alumnos están en riesgo?",
-                "¿Cuáles son las estadísticas generales?",
-                "¿Qué grupos hay activos?",
-                "¿Cuáles son las materias más reprobadas?",
-                "¿Cuántas solicitudes de ayuda hay?"
-            ],
-            'directivo': [
-                "¿Cuáles son las estadísticas generales?",
-                "¿Qué alumnos están en riesgo?",
-                "¿Cómo va el rendimiento por carreras?",
-                "¿Qué materias tienen más reprobación?",
-                "¿Cuántos grupos hay activos?",
-                "¿Cuántas solicitudes pendientes hay?"
-            ]
-        }
+    def get_available_commands(self, role: str = 'directivo') -> Dict[str, Any]:
+        directivo_commands = [
+            "¿Cuáles son las estadísticas generales?",
+            "¿Qué alumnos tienen las calificaciones más bajas?",
+            "¿Qué alumnos están en riesgo crítico?",
+            "¿Dónde está ubicado el grupo [nombre]?",
+            "¿A qué hora tiene clases el grupo [nombre]?",
+            "¿Qué grupos están llenos o cerca del límite?",
+            "¿Cómo va el rendimiento por carreras?",
+            "¿Qué profesores están sobrecargados?",
+            "¿Cuáles son las materias más reprobadas?",
+            "¿Qué solicitudes de ayuda están urgentes?",
+            "Información de matrícula [número]",
+            "¿Cuántos alumnos, profesores y grupos hay?"
+        ]
         
         return {
-            "commands": commands.get(role, commands['alumno']),
-            "role": role,
-            "total_commands": len(commands.get(role, []))
+            "commands": directivo_commands,
+            "role": "directivo",
+            "total_commands": len(directivo_commands)
         }
     
     def analyze_query_complexity(self, message: str) -> Dict[str, Any]:
         complexity_indicators = {
-            'simple': ['que', 'cual', 'cuanto', 'quien'],
-            'medium': ['como', 'donde', 'cuando', 'por que'],
-            'complex': ['analizar', 'comparar', 'evaluar', 'generar reporte']
+            'simple': ['que', 'cual', 'cuanto', 'quien', 'hola', 'gracias'],
+            'medium': ['como', 'donde', 'cuando', 'por que', 'estadisticas', 'informacion'],
+            'complex': ['analizar', 'comparar', 'evaluar', 'generar reporte', 'detallado', 'completo']
         }
         
         message_lower = message.lower()
@@ -188,29 +241,29 @@ class ConversationAI:
             "estimated_processing_time": {
                 'simple': '< 1 segundo',
                 'medium': '1-3 segundos', 
-                'complex': '3-10 segundos'
+                'complex': '3-5 segundos'
             }.get(complexity, '< 1 segundo')
         }
     
     def validate_user_permissions(self, role: str, intent: str) -> Tuple[bool, str]:
         role_permissions = {
             'alumno': [
-                'calificaciones', 'horarios', 'conversacion_general',
-                'saludo', 'despedida', 'agradecimiento'
+                'calificaciones', 'horarios', 'estadisticas_generales', 'carreras', 'grupos',
+                'saludo', 'despedida', 'agradecimiento', 'pregunta_estado', 'pregunta_identidad'
             ],
             'profesor': [
-                'alumnos_riesgo', 'grupos', 'estadisticas_generales',
-                'materias_reprobadas', 'calificaciones', 'horarios'
+                'alumnos_riesgo', 'grupos', 'estadisticas_generales', 'materias_reprobadas',
+                'calificaciones', 'horarios', 'carreras', 'profesores', 'solicitudes_ayuda'
             ],
             'directivo': [
-                'estadisticas_generales', 'alumnos_riesgo', 'promedio_carreras',
-                'materias_reprobadas', 'solicitudes_ayuda', 'grupos'
+                'estadisticas_generales', 'alumnos_riesgo', 'carreras', 'materias_reprobadas', 
+                'solicitudes_ayuda', 'grupos', 'profesores', 'alumnos'
             ]
         }
         
         allowed_intents = role_permissions.get(role, role_permissions['alumno'])
         
-        if intent in allowed_intents or intent.startswith('conversacion') or intent.startswith('emocional'):
+        if intent in allowed_intents or intent.startswith('conversacion') or intent.startswith('emocional') or intent == 'consulta_sugerencia':
             return True, "Acceso permitido"
         
         return False, f"No tienes permisos para realizar consultas de tipo '{intent}'"
@@ -229,9 +282,17 @@ class ConversationAI:
                     "query_generator": "ready", 
                     "response_formatter": "ready"
                 },
+                "capabilities": [
+                    "Conversación natural",
+                    "Consultas SQL dinámicas",
+                    "Múltiples roles de usuario",
+                    "Contexto conversacional",
+                    "Respuestas formateadas"
+                ],
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
+            logger.error(f"Error en get_system_status: {e}")
             return {
                 "system_status": "error",
                 "error": str(e),

@@ -7,89 +7,145 @@ logger = logging.getLogger(__name__)
 class IntentClassifier:
     def __init__(self):
         self.intent_patterns = {
+            'estadisticas_generales': {
+                'keywords': [
+                    'estadisticas', 'estadistica', 'general', 'resumen', 'datos', 'numeros', 
+                    'cuantos hay', 'total', 'cantidad', 'informacion general',
+                    'cuantos alumnos', 'cuantos profesores', 'cuantos estudiantes',
+                    'cuantos grupos', 'resumen del sistema'
+                ],
+                'priority': 8
+            },
+            'alumnos_bajo_rendimiento': {
+                'keywords': [
+                    'alumnos bajo rendimiento', 'peores calificaciones', 'matriculas bajas',
+                    'estudiantes con problemas', 'alumnos reprobando', 'bajo promedio',
+                    'calificaciones mas bajas', 'estudiantes en riesgo', 'reprobar'
+                ],
+                'priority': 9
+            },
+            'alumnos_riesgo': {
+                'keywords': [
+                    'riesgo', 'problema', 'dificultad', 'critico', 'alto riesgo', 'alumnos problemas',
+                    'estudiantes riesgo', 'matriculas riesgo', 'problemas academicos',
+                    'reportes riesgo', 'seguimiento'
+                ],
+                'priority': 8
+            },
+            'ubicacion_grupos': {
+                'keywords': [
+                    'donde esta el grupo', 'ubicacion grupo', 'aula del grupo', 'salon',
+                    'donde tienen clase', 'que aula', 'ubicacion', 'donde se encuentra'
+                ],
+                'priority': 8
+            },
+            'horarios_grupos': {
+                'keywords': [
+                    'horario del grupo', 'que hora tiene clase', 'cuando tiene clase',
+                    'horarios de grupos', 'a que hora', 'schedule grupo', 'clases grupo'
+                ],
+                'priority': 8
+            },
+            'grupos_detalle': {
+                'keywords': [
+                    'grupos', 'que grupos hay', 'lista grupos', 'grupos activos',
+                    'informacion grupos', 'detalles grupos', 'cuantos grupos'
+                ],
+                'priority': 8
+            },
+            'carreras_rendimiento': {
+                'keywords': [
+                    'rendimiento por carrera', 'carreras', 'promedio carreras',
+                    'cual carrera va mejor', 'carreras problematicas', 'comparar carreras'
+                ],
+                'priority': 8
+            },
+            'profesores_carga': {
+                'keywords': [
+                    'carga profesores', 'que profesor tiene mas grupos', 'profesores sobrecargados',
+                    'distribucion profesores', 'profesor con mas clases', 'workload profesores'
+                ],
+                'priority': 7
+            },
+            'materias_criticas': {
+                'keywords': [
+                    'materias mas reprobadas', 'asignaturas problematicas', 'materias dificiles',
+                    'mayor reprobacion', 'materias criticas', 'asignaturas con problemas'
+                ],
+                'priority': 8
+            },
+            'solicitudes_urgentes': {
+                'keywords': [
+                    'solicitudes urgentes', 'ayuda pendiente', 'solicitudes criticas',
+                    'peticiones sin atender', 'solicitudes de emergencia'
+                ],
+                'priority': 8
+            },
+            'capacidad_grupos': {
+                'keywords': [
+                    'grupos llenos', 'capacidad grupos', 'grupos saturados',
+                    'cuantos alumnos por grupo', 'ocupacion grupos'
+                ],
+                'priority': 7
+            },
+            'matriculas_especificas': {
+                'keywords': [
+                    'matricula', 'matriculas', 'alumno especifico', 'estudiante numero',
+                    'buscar alumno', 'datos de matricula'
+                ],
+                'priority': 8
+            },
+            'analisis_temporal': {
+                'keywords': [
+                    'tendencia', 'evolucion', 'comparar periodos', 'historico',
+                    'mejora', 'empeoramiento', 'progreso'
+                ],
+                'priority': 7
+            },
             'saludo': {
-                'keywords': ['hola', 'hello', 'hi', 'buenos dias', 'buenas tardes', 'buenas noches', 'que tal'],
+                'keywords': [
+                    'hola', 'hello', 'hi', 'buenos dias', 'buenas tardes', 'buenas noches', 
+                    'que tal', 'saludos', 'hey'
+                ],
                 'priority': 10
             },
             'despedida': {
-                'keywords': ['adios', 'bye', 'hasta luego', 'nos vemos', 'chao'],
+                'keywords': [
+                    'adios', 'bye', 'hasta luego', 'nos vemos', 'chao', 'gracias adios'
+                ],
                 'priority': 10
             },
             'agradecimiento': {
-                'keywords': ['gracias', 'thank you', 'te lo agradezco', 'muchas gracias'],
+                'keywords': [
+                    'gracias', 'thank you', 'te lo agradezco', 'muchas gracias',
+                    'gracias por la info', 'perfecto gracias'
+                ],
                 'priority': 10
             },
             'pregunta_estado': {
-                'keywords': ['como estas', 'que tal', 'como te encuentras', 'how are you'],
+                'keywords': [
+                    'como estas', 'que tal estas', 'como te encuentras', 'how are you',
+                    'como andas', 'todo bien'
+                ],
                 'priority': 9
             },
             'pregunta_identidad': {
-                'keywords': ['quien eres', 'que eres', 'who are you', 'que puedes hacer', 'como funcionas'],
+                'keywords': [
+                    'quien eres', 'que eres', 'who are you', 'que puedes hacer', 
+                    'como funcionas', 'que sabes hacer', 'en que me ayudas'
+                ],
                 'priority': 9
-            },
-            'estadisticas_generales': {
-                'keywords': ['estadisticas', 'general', 'resumen', 'datos', 'numeros', 'cuantos hay', 'total'],
-                'priority': 8
-            },
-            'alumnos_riesgo': {
-                'keywords': ['riesgo', 'problema', 'dificultad', 'critico', 'alto riesgo', 'alumnos problemas'],
-                'priority': 8
-            },
-            'promedio_carreras': {
-                'keywords': ['promedio', 'carrera', 'rendimiento', 'promedio carrera', 'carreras'],
-                'priority': 8
-            },
-            'materias_reprobadas': {
-                'keywords': ['reprobada', 'reprobadas', 'materias reprobadas', 'asignaturas reprobadas', 'fallas'],
-                'priority': 8
-            },
-            'solicitudes_ayuda': {
-                'keywords': ['solicitud', 'ayuda', 'pendiente', 'atencion', 'solicitudes'],
-                'priority': 8
-            },
-            'calificaciones': {
-                'keywords': ['calificacion', 'calificaciones', 'notas', 'puntuaciones', 'resultados', 'mis notas'],
-                'priority': 7
-            },
-            'horarios': {
-                'keywords': ['horario', 'horarios', 'clase', 'clases', 'aula', 'mi horario'],
-                'priority': 7
-            },
-            'grupos': {
-                'keywords': ['grupo', 'grupos', 'que grupos', 'cuales grupos'],
-                'priority': 7
-            },
-            'profesores': {
-                'keywords': ['profesor', 'profesores', 'maestro', 'maestros', 'docente'],
-                'priority': 6
-            },
-            'asignaturas': {
-                'keywords': ['asignatura', 'asignaturas', 'materia', 'materias', 'curso'],
-                'priority': 6
-            },
-            'emocional_negativo': {
-                'keywords': ['triste', 'deprimido', 'mal', 'terrible', 'horrible', 'preocupado', 'ansioso'],
-                'priority': 5
-            },
-            'emocional_positivo': {
-                'keywords': ['feliz', 'contento', 'bien', 'genial', 'excelente', 'perfecto'],
-                'priority': 5
-            },
-            'afirmacion': {
-                'keywords': ['si', 'claro', 'ok', 'esta bien', 'perfecto', 'correcto'],
-                'priority': 4
-            },
-            'negacion': {
-                'keywords': ['no', 'nada', 'mejor no', 'no gracias'],
-                'priority': 4
             }
         }
         
-        self.context_patterns = {
-            'continuation': ['mas', 'otro', 'tambien', 'ademas', 'siguiente'],
-            'clarification': ['que significa', 'no entiendo', 'explica', 'como'],
-            'specific_request': ['dame', 'muestrame', 'necesito', 'quiero ver']
-        }
+        self.directivo_question_indicators = [
+            'cuanto', 'cuanta', 'cuantos', 'cuantas',
+            'que', 'cual', 'cuales', 'quien', 'quienes',
+            'como', 'donde', 'cuando', 'por que', 'porque',
+            'dame', 'muestrame', 'necesito', 'quiero',
+            'dime', 'explicame', 'cuentame', 'reporta',
+            'lista', 'identifica', 'encuentra'
+        ]
     
     def classify_intent(self, message: str, context: Optional[Dict[str, Any]] = None) -> str:
         if not message or not message.strip():
@@ -99,9 +155,9 @@ class IntentClassifier:
         message_lower = message_clean.lower()
         
         if self._is_matricula_query(message):
-            return 'consulta_matricula'
+            return 'matriculas_especificas'
         
-        best_intent = 'conversacion_general'
+        best_intent = None
         highest_score = 0
         
         for intent, pattern_data in self.intent_patterns.items():
@@ -110,15 +166,39 @@ class IntentClassifier:
                 highest_score = score
                 best_intent = intent
         
+        if highest_score >= 0.3:
+            return best_intent
+        
+        if self._is_directivo_question(message_lower):
+            return self._classify_directivo_question_type(message_lower)
+        
         if context and context.get('last_intent'):
             context_intent = self._check_context_continuation(message_lower, context)
             if context_intent:
                 return context_intent
         
-        if highest_score < 0.3:
-            return 'conversacion_general'
+        return 'consulta_general_directivo'
+    
+    def _is_directivo_question(self, message: str) -> bool:
+        return any(indicator in message for indicator in self.directivo_question_indicators)
+    
+    def _classify_directivo_question_type(self, message: str) -> str:
+        directivo_patterns = {
+            'estadisticas_generales': ['cuantos alumnos', 'cuantos profesores', 'cuantos grupos', 'cantidad total'],
+            'ubicacion_grupos': ['donde esta', 'que aula', 'ubicacion', 'salon'],
+            'horarios_grupos': ['que hora', 'cuando tiene', 'horario'],
+            'alumnos_bajo_rendimiento': ['peores', 'mas bajas', 'bajo rendimiento', 'reprobando'],
+            'materias_criticas': ['mas reprobadas', 'problematicas', 'dificiles'],
+            'capacidad_grupos': ['cuantos por grupo', 'llenos', 'capacidad'],
+            'carreras_rendimiento': ['rendimiento carrera', 'mejor carrera', 'promedio carrera'],
+            'profesores_carga': ['carga profesor', 'mas grupos', 'sobrecargado']
+        }
         
-        return best_intent
+        for intent, patterns in directivo_patterns.items():
+            if any(pattern in message for pattern in patterns):
+                return intent
+        
+        return 'estadisticas_generales'
     
     def _clean_message(self, message: str) -> str:
         message = re.sub(r'[¿¡]', '', message)
@@ -151,20 +231,27 @@ class IntentClassifier:
         if len([k for k in keywords if k in message]) > 1:
             length_bonus = 0.2
         
-        final_score = (keyword_score * priority_multiplier) + length_bonus
+        exact_match_bonus = 0
+        for keyword in keywords:
+            if keyword == message.strip():
+                exact_match_bonus = 0.5
+                break
+        
+        final_score = (keyword_score * priority_multiplier) + length_bonus + exact_match_bonus
         return min(final_score, 1.0)
     
     def _check_context_continuation(self, message: str, context: Dict[str, Any]) -> Optional[str]:
         last_intent = context.get('last_intent')
         
-        if any(word in message for word in self.context_patterns['continuation']):
-            if last_intent and last_intent != 'conversacion_general':
+        continuation_words = ['mas', 'otro', 'tambien', 'ademas', 'siguiente', 'detalles']
+        if any(word in message for word in continuation_words):
+            if last_intent and last_intent != 'consulta_general_directivo':
                 return f"mas_{last_intent}"
         
-        if any(word in message for word in ['si', 'claro', 'ok']):
+        if any(word in message for word in ['si', 'claro', 'ok', 'correcto', 'exacto']):
             return 'afirmacion'
         
-        if any(word in message for word in ['no', 'nada']):
+        if any(word in message for word in ['no', 'nada', 'mejor no']):
             return 'negacion'
         
         return None
