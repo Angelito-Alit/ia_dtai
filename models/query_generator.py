@@ -1,3 +1,4 @@
+# models/query_generator.py
 import re
 from typing import Dict, List, Optional, Tuple
 import logging
@@ -327,7 +328,135 @@ class QueryGenerator:
                 WHERE al.matricula = %s
                 GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, g.nombre, al.cuatrimestre_actual, al.promedio_general, al.estado_alumno
                 """
-            }
+            },
+            'alumnos_por_carrera_cuatrimestre': {
+                'query': """
+                SELECT 
+                    car.nombre as carrera,
+                    al.cuatrimestre_actual,
+                    COUNT(al.id) as total_alumnos,
+                    ROUND(AVG(al.promedio_general), 2) as promedio_general_carrera,
+                    COUNT(CASE WHEN al.promedio_general >= 9.0 THEN 1 END) as excelencia,
+                    COUNT(CASE WHEN al.promedio_general < 7.0 THEN 1 END) as riesgo_academico
+                FROM alumnos al
+                JOIN carreras car ON al.carrera_id = car.id
+                WHERE al.estado_alumno = 'activo'
+                GROUP BY car.id, car.nombre, al.cuatrimestre_actual
+                ORDER BY car.nombre, al.cuatrimestre_actual
+                """
+            },
+            'alumnos_inactivos': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    al.cuatrimestre_actual,
+                    CASE 
+                        WHEN u.activo = 1 THEN 'activo'
+                        ELSE 'inactivo'
+                    END as estado_usuario,
+                    al.promedio_general,
+                    al.fecha_ingreso,
+                    g.codigo as grupo_actual,
+                    COUNT(c.id) as total_materias,
+                    COUNT(CASE WHEN c.estatus = 'aprobado' THEN 1 END) as materias_aprobadas
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                LEFT JOIN calificaciones c ON al.id = c.alumno_id
+                WHERE u.activo = 0
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, al.cuatrimestre_actual, 
+                        u.activo, al.promedio_general, al.fecha_ingreso, g.codigo
+                ORDER BY car.nombre, u.apellido, u.nombre
+                """
+            },
+            'alumnos_altas_calificaciones': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    g.codigo as grupo,
+                    al.cuatrimestre_actual,
+                    COUNT(CASE WHEN c.calificacion_final = 8.0 THEN 1 END) as materias_SA,
+                    COUNT(CASE WHEN c.calificacion_final = 9.0 THEN 1 END) as materias_DE,
+                    COUNT(CASE WHEN c.calificacion_final = 10.0 THEN 1 END) as materias_AU,
+                    COUNT(CASE WHEN c.calificacion_final >= 8.0 THEN 1 END) as total_sobresalientes,
+                    COUNT(c.id) as total_materias_evaluadas,
+                    ROUND(AVG(c.calificacion_final), 2) as promedio_ciclo,
+                    c.ciclo_escolar
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                JOIN calificaciones c ON al.id = c.alumno_id
+                WHERE al.estado_alumno = 'activo' 
+                AND c.calificacion_final >= 8.0
+                AND c.ciclo_escolar = (
+                    SELECT MAX(ciclo_escolar) 
+                    FROM calificaciones 
+                    WHERE alumno_id = al.id
+                )
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, g.codigo, 
+                        al.cuatrimestre_actual, c.ciclo_escolar
+                HAVING total_sobresalientes > 0
+                ORDER BY total_materias_evaluadas DESC, promedio_ciclo DESC, car.nombre, u.apellido
+                """
+            },
+            'alumnos_riesgo_academico': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    g.codigo as grupo,
+                    al.cuatrimestre_actual,
+                    al.promedio_general,
+                    rr.tipo_riesgo,
+                    rr.nivel_riesgo,
+                    rr.descripcion,
+                    rr.fecha_reporte,
+                    rr.estado as estado_reporte,
+                    COUNT(rr.id) as total_reportes_riesgo,
+                    COUNT(CASE WHEN rr.tipo_riesgo = 'academico' THEN 1 END) as reportes_academicos,
+                    CONCAT(up.nombre, ' ', up.apellido) as profesor_reporta
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                JOIN reportes_riesgo rr ON al.id = rr.alumno_id
+                LEFT JOIN profesores p ON rr.profesor_id = p.id
+                LEFT JOIN usuarios up ON p.usuario_id = up.id
+                WHERE al.estado_alumno = 'activo'
+                AND rr.tipo_riesgo = 'academico'
+                AND rr.estado IN ('abierto', 'en_proceso')
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, g.codigo,
+                        al.cuatrimestre_actual, al.promedio_general, rr.tipo_riesgo, 
+                        rr.nivel_riesgo, rr.descripcion, rr.fecha_reporte, rr.estado, up.nombre, up.apellido
+                ORDER BY 
+                    CASE rr.nivel_riesgo 
+                        WHEN 'critico' THEN 1 
+                        WHEN 'alto' THEN 2 
+                        WHEN 'medio' THEN 3 
+                        ELSE 4 
+                    END,
+                    rr.fecha_reporte DESC
+                """
+            },
+            
+            
+            
+            
+            
+            
+            
+            
+            
         }
     
     def generate_query(self, message: str, intent: str, user_id: Optional[int] = None, role: str = 'directivo') -> Tuple[Optional[str], list]:
@@ -341,7 +470,7 @@ class QueryGenerator:
             return self.directivo_queries[intent]['query'], []
         
         keyword_mappings = {
-            'cuantos alumnos': 'estadisticas_generales',
+           'cuantos alumnos': 'estadisticas_generales',
             'cuantos profesores': 'estadisticas_generales', 
             'donde esta el grupo': 'ubicacion_grupos',
             'que hora tiene': 'horarios_grupos',
@@ -351,7 +480,16 @@ class QueryGenerator:
             'solicitudes urgentes': 'solicitudes_urgentes',
             'grupos llenos': 'capacidad_grupos',
             'carga profesor': 'profesores_carga',
-            'rendimiento carrera': 'carreras_rendimiento'
+            'rendimiento carrera': 'carreras_rendimiento',
+            'alumnos por carrera': 'alumnos_por_carrera_cuatrimestre',
+            'distribucion alumnos': 'alumnos_por_carrera_cuatrimestre',
+            'alumnos inactivos': 'alumnos_inactivos',
+            'estudiantes inactivos': 'alumnos_inactivos',
+            'alumnos SA': 'alumnos_altas_calificaciones',
+            'alumnos DE': 'alumnos_altas_calificaciones',
+            'alumnos AU': 'alumnos_altas_calificaciones',
+            'altas calificaciones': 'alumnos_altas_calificaciones',
+            'riesgo academico': 'alumnos_riesgo_academico'
         }
         
         for keyword, mapped_intent in keyword_mappings.items():

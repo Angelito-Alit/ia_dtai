@@ -1,3 +1,4 @@
+# utils/intent_classifier.py
 import re
 from typing import Dict, Any, Optional, List
 import logging
@@ -135,7 +136,51 @@ class IntentClassifier:
                     'como funcionas', 'que sabes hacer', 'en que me ayudas'
                 ],
                 'priority': 9
-            }
+            },
+            'alumnos_por_carrera_cuatrimestre': {
+                'keywords': [
+                    'cuantos alumnos por carrera', 'alumnos por cuatrimestre', 'distribucion alumnos',
+                    'alumnos por carrera y cuatrimestre', 'cantidad alumnos carrera',
+                    'estadisticas por carrera', 'conteo alumnos', 'alumnos activos por carrera',
+                    'cuantos estudiantes por carrera', 'distribucion estudiantes'
+                ],
+                'priority': 8
+            },
+            'alumnos_inactivos': {
+                'keywords': [
+                    'alumnos inactivos', 'estudiantes inactivos', 'alumnos no activos',
+                    'listado inactivos', 'alumnos dados de baja', 'estudiantes dados de baja',
+                    'alumnos que no estan activos', 'estado inactivo', 'no activos'
+                ],
+                'priority': 8
+            },
+            
+            'alumnos_altas_calificaciones': {
+                'keywords': [
+                    'alumnos SA', 'alumnos DE', 'alumnos AU', 'calificacion 8', 'calificacion 9', 'calificacion 10',
+                    'satisfactorio', 'destacado', 'autonomo', 'altas calificaciones', 'mejores calificaciones',
+                    'excelentes calificaciones', 'ultimo ciclo', 'calificaciones sobresalientes',
+                    'estudiantes destacados', 'rendimiento sobresaliente'
+                ],
+                'priority': 8
+            },
+            'alumnos_riesgo_academico': {
+                'keywords': [
+                    'alumnos riesgo academico', 'estudiantes riesgo academico', 'riesgo academico',
+                    'alumnos problemas academicos', 'estudiantes problemas academicos',
+                    'reportes riesgo academico', 'riesgo escolar', 'alumnos en riesgo',
+                    'estudiantes en riesgo', 'problemas rendimiento', 'bajo rendimiento academico'
+                ],
+                'priority': 9
+            },
+            
+            
+            
+            
+            
+            
+            
+            
         }
         
         self.directivo_question_indicators = [
