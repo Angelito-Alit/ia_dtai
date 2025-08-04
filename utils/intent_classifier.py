@@ -175,6 +175,69 @@ class IntentClassifier:
                 ],
                 'priority': 9
             },
+            'nombre_carreras': {
+                'keywords': [
+                    'nombre carreras', 'lista carreras', 'que carreras hay', 'carreras disponibles',
+                    'todas las carreras', 'carreras activas', 'nombres de carreras'
+                ],
+                'priority': 8
+            },
+            'info_todos_alumnos': {
+                'keywords': [
+                    'info todos los alumnos', 'informacion todos alumnos', 'lista todos alumnos',
+                    'todos los estudiantes', 'listado completo alumnos', 'alumnos completos'
+                ],
+                'priority': 8
+            },
+            'alumnos_calificacion_menor_8': {
+                'keywords': [
+                    'alumnos menor a 8', 'calificacion menor 8', 'menos de 8', 'bajo de 8',
+                    'calificaciones menores a 8', 'promedio menor 8', 'nota menor 8'
+                ],
+                'priority': 8
+            },
+            'alumnos_bajo_rendimiento_8': {
+                'keywords': [
+                    'bajo rendimiento desde 8', 'rendimiento 8 para abajo', 'desde 8 abajo',
+                    'promedio 8 hacia abajo', 'calificacion 8 o menor'
+                ],
+                'priority': 8
+            },
+            'profesores_grupo': {
+                'keywords': [
+                    'profesores de este grupo', 'profesores del grupo', 'que profesores tiene el grupo',
+                    'docentes del grupo', 'maestros del grupo'
+                ],
+                'priority': 8
+            },
+            'alumnos_grupo': {
+                'keywords': [
+                    'alumnos de este grupo', 'estudiantes del grupo', 'informacion alumnos grupo',
+                    'que alumnos tiene el grupo', 'listado grupo'
+                ],
+                'priority': 8
+            },
+            'alumnos_calificaciones_altas_por_carrera': {
+                'keywords': [
+                    'alumnos calificaciones altas', '3 de cada carrera', 'mejores de cada carrera',
+                    'top 3 por carrera', 'mejores alumnos carrera', 'destacados por carrera'
+                ],
+                'priority': 8
+            },
+            'info_profesor': {
+                'keywords': [
+                    'info profesor', 'informacion profesor', 'datos profesor',
+                    'info de este profesor', 'informacion de profesor'
+                ],
+                'priority': 8
+            },
+            'tutor_grupo': {
+                'keywords': [
+                    'tutor del grupo', 'quien es tutor', 'tutor de este grupo',
+                    'profesor tutor', 'responsable del grupo'
+                ],
+                'priority': 8
+            }
             
             
             

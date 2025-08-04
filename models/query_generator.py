@@ -448,7 +448,200 @@ class QueryGenerator:
                     rr.fecha_reporte DESC
                 """
             },
-            
+            'nombre_carreras': {
+                'query': """
+                SELECT 
+                    id,
+                    nombre,
+                    codigo,
+                    descripcion,
+                    duracion_cuatrimestres,
+                    CASE WHEN activa = 1 THEN 'Activa' ELSE 'Inactiva' END as estado
+                FROM carreras
+                ORDER BY nombre
+                """
+            },
+            'info_todos_alumnos': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    g.codigo as grupo,
+                    al.cuatrimestre_actual,
+                    al.promedio_general,
+                    al.estado_alumno,
+                    al.fecha_ingreso,
+                    al.telefono,
+                    al.tutor_nombre
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                ORDER BY car.nombre, al.cuatrimestre_actual, u.apellido, u.nombre
+                """
+            },
+            'alumnos_calificacion_menor_8': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    g.codigo as grupo,
+                    al.cuatrimestre_actual,
+                    al.promedio_general,
+                    COUNT(c.id) as total_materias,
+                    COUNT(CASE WHEN c.calificacion_final < 8.0 THEN 1 END) as materias_menor_8
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                LEFT JOIN calificaciones c ON al.id = c.alumno_id
+                WHERE al.estado_alumno = 'activo' AND (al.promedio_general < 8.0 OR al.promedio_general IS NULL)
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, g.codigo, al.cuatrimestre_actual, al.promedio_general
+                ORDER BY al.promedio_general ASC, car.nombre
+                """
+            },
+            'alumnos_bajo_rendimiento_8': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    g.codigo as grupo,
+                    al.cuatrimestre_actual,
+                    al.promedio_general,
+                    COUNT(c.id) as total_materias,
+                    COUNT(CASE WHEN c.estatus = 'reprobado' THEN 1 END) as materias_reprobadas
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                LEFT JOIN calificaciones c ON al.id = c.alumno_id
+                WHERE al.estado_alumno = 'activo' AND al.promedio_general <= 8.0
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, g.codigo, al.cuatrimestre_actual, al.promedio_general
+                ORDER BY al.promedio_general ASC, materias_reprobadas DESC
+                """
+            },
+            'profesores_grupo': {
+                'query': """
+                SELECT 
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_profesor,
+                    p.numero_empleado,
+                    p.especialidad,
+                    p.titulo_academico,
+                    a.nombre as asignatura,
+                    h.dia_semana,
+                    h.hora_inicio,
+                    h.hora_fin,
+                    h.aula,
+                    g.codigo as grupo,
+                    car.nombre as carrera
+                FROM grupos g
+                JOIN carreras car ON g.carrera_id = car.id
+                JOIN profesor_asignatura_grupo pag ON g.id = pag.grupo_id AND pag.activo = 1
+                JOIN profesores p ON pag.profesor_id = p.id
+                JOIN usuarios u ON p.usuario_id = u.id
+                JOIN asignaturas a ON pag.asignatura_id = a.id
+                LEFT JOIN horarios h ON pag.id = h.profesor_asignatura_grupo_id AND h.activo = 1
+                WHERE g.codigo = %s AND g.activo = 1
+                ORDER BY u.apellido, u.nombre, h.dia_semana, h.hora_inicio
+                """
+            },
+            'alumnos_grupo': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    al.cuatrimestre_actual,
+                    al.promedio_general,
+                    al.estado_alumno,
+                    al.telefono,
+                    al.tutor_nombre,
+                    COUNT(c.id) as total_materias,
+                    COUNT(CASE WHEN c.estatus = 'aprobado' THEN 1 END) as materias_aprobadas
+                FROM grupos g
+                JOIN alumnos_grupos ag ON g.id = ag.grupo_id AND ag.activo = 1
+                JOIN alumnos al ON ag.alumno_id = al.id
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN calificaciones c ON al.id = c.alumno_id
+                WHERE g.codigo = %s AND g.activo = 1
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, al.cuatrimestre_actual, al.promedio_general, al.estado_alumno, al.telefono, al.tutor_nombre
+                ORDER BY u.apellido, u.nombre
+                """
+            },
+            'alumnos_calificaciones_altas_por_carrera': {
+                'query': """
+                SELECT 
+                    al.matricula,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    car.nombre as carrera,
+                    al.cuatrimestre_actual,
+                    al.promedio_general,
+                    g.codigo as grupo,
+                    COUNT(CASE WHEN c.calificacion_final >= 9.0 THEN 1 END) as materias_excelentes,
+                    COUNT(c.id) as total_materias
+                FROM alumnos al
+                JOIN usuarios u ON al.usuario_id = u.id
+                JOIN carreras car ON al.carrera_id = car.id
+                LEFT JOIN alumnos_grupos ag ON al.id = ag.alumno_id AND ag.activo = 1
+                LEFT JOIN grupos g ON ag.grupo_id = g.id
+                LEFT JOIN calificaciones c ON al.id = c.alumno_id
+                WHERE al.estado_alumno = 'activo' AND al.promedio_general >= 8.5
+                GROUP BY al.id, al.matricula, u.nombre, u.apellido, car.nombre, al.cuatrimestre_actual, al.promedio_general, g.codigo
+                ORDER BY car.nombre, al.promedio_general DESC
+                """
+            },
+            'info_profesor': {
+                'query': """
+                SELECT 
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_completo,
+                    p.numero_empleado,
+                    p.especialidad,
+                    p.titulo_academico,
+                    p.cedula_profesional,
+                    p.experiencia_años,
+                    p.telefono,
+                    p.extension,
+                    p.fecha_contratacion,
+                    CASE WHEN p.es_tutor = 1 THEN 'Sí' ELSE 'No' END as es_tutor,
+                    car.nombre as carrera_adscripcion,
+                    COUNT(DISTINCT pag.grupo_id) as grupos_asignados,
+                    COUNT(DISTINCT pag.asignatura_id) as materias_imparte
+                FROM profesores p
+                JOIN usuarios u ON p.usuario_id = u.id
+                JOIN carreras car ON p.carrera_id = car.id
+                LEFT JOIN profesor_asignatura_grupo pag ON p.id = pag.profesor_id AND pag.activo = 1
+                WHERE CONCAT(u.nombre, ' ', u.apellido) LIKE %s AND p.activo = 1
+                GROUP BY p.id, u.nombre, u.apellido, p.numero_empleado, p.especialidad, p.titulo_academico, p.cedula_profesional, p.experiencia_años, p.telefono, p.extension, p.fecha_contratacion, p.es_tutor, car.nombre
+                """
+            },
+            'tutor_grupo': {
+                'query': """
+                SELECT 
+                    g.codigo as grupo,
+                    car.nombre as carrera,
+                    g.cuatrimestre,
+                    CONCAT(u.nombre, ' ', u.apellido) as nombre_tutor,
+                    p.numero_empleado,
+                    p.telefono,
+                    p.extension,
+                    p.especialidad,
+                    COUNT(ag.alumno_id) as total_alumnos_grupo
+                FROM grupos g
+                JOIN carreras car ON g.carrera_id = car.id
+                LEFT JOIN profesores p ON g.profesor_tutor_id = p.id
+                LEFT JOIN usuarios u ON p.usuario_id = u.id
+                LEFT JOIN alumnos_grupos ag ON g.id = ag.grupo_id AND ag.activo = 1
+                WHERE g.codigo = %s AND g.activo = 1
+                GROUP BY g.id, g.codigo, car.nombre, g.cuatrimestre, u.nombre, u.apellido, p.numero_empleado, p.telefono, p.extension, p.especialidad
+                """
+            }
             
             
             

@@ -42,6 +42,8 @@ class ResponseFormatter:
             'matriculas_especificas': self._format_specific_student,
             'alumnos_por_carrera_cuatrimestre': self._format_alumnos_por_carrera_cuatrimestre,
             'alumnos_inactivos': self._format_alumnos_inactivos,
+            'alumnos_altas_calificaciones': self._format_alumnos_altas_calificaciones,
+            'alumnos_riesgo_academico': self._format_alumnos_riesgo_academico
         }
     
         formatter = formatters.get(intent, self._format_generic_administrative_data)
