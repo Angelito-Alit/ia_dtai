@@ -160,7 +160,9 @@ class IntentClassifier:
                     'alumnos SA', 'alumnos DE', 'alumnos AU', 'calificacion 8', 'calificacion 9', 'calificacion 10',
                     'satisfactorio', 'destacado', 'autonomo', 'altas calificaciones', 'mejores calificaciones',
                     'excelentes calificaciones', 'ultimo ciclo', 'calificaciones sobresalientes',
-                    'estudiantes destacados', 'rendimiento sobresaliente'
+                    'estudiantes destacados', 'rendimiento sobresaliente', 'calificaciones satisfactorio',
+                    'calificaciones destacado', 'calificaciones autonomo', 'SA DE AU', 'nota 8',
+                    'nota 9', 'nota 10', 'notas altas', 'mejores notas', 'notas sobresalientes'
                 ],
                 'priority': 8
             },

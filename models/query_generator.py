@@ -489,6 +489,11 @@ class QueryGenerator:
             'alumnos DE': 'alumnos_altas_calificaciones',
             'alumnos AU': 'alumnos_altas_calificaciones',
             'altas calificaciones': 'alumnos_altas_calificaciones',
+            'riesgo academico': 'alumnos_riesgo_academico',
+            'satisfactorio': 'alumnos_altas_calificaciones',
+            'destacado': 'alumnos_altas_calificaciones',
+            'autonomo': 'alumnos_altas_calificaciones',
+            'calificaciones sobresalientes': 'alumnos_altas_calificaciones',
             'riesgo academico': 'alumnos_riesgo_academico'
         }
         
